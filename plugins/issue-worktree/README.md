@@ -35,7 +35,7 @@ Issue and PR numbers are assigned at creation, so the body is written without th
 Given an issue number:
 
 1. `gh issue view` — reads the issue in full (the content is what the implementation step works from)
-2. Derives `feature/<number>_<english-slug>` and a sibling worktree path `../<repo>-<branch-slug>`
+2. Derives a [Conventional Branch](https://conventionalbranch.org/) name `<prefix>/<number>-<english-slug>` — the prefix (`feature` / `bugfix` / `hotfix` / `release` / `chore`) is chosen from the issue's labels — and a sibling worktree path `../<repo>-<branch-slug>`
 3. `git worktree add`
 4. Registers the worktree in `folders` of the repo's `*.code-workspace` — named after the branch, so VSCode shows which worktree is which — creating `<repo>.code-workspace` if none exists
 5. **`EnterWorktree`** to move the session in
@@ -79,3 +79,4 @@ See [skills/issue-draft/SKILL.md](skills/issue-draft/SKILL.md) and
 - The worktree is removed only as part of a completed merge (step 11). If the run stops earlier, it is kept so the work can be resumed by entering the same path again
 - Because the worktree is created outside `.claude/worktrees/`, `ExitWorktree` will not delete it — removal is an explicit `git worktree remove`
 - The squash merge needs to be enabled on the repository. The skill reports it and stops rather than falling back to `--merge` or `--rebase`
+- Renaming a branch mid-run is a rename, not a re-cut: `git branch -m`, then `git worktree move` after leaving the worktree, then the matching `folders` entry. `mv` would leave the worktree's git metadata pointing at the old path

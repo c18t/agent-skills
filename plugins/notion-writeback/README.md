@@ -10,11 +10,11 @@ Exposure scales with the **number of calls**, not the payload size — "split lo
 This plugin creates a path where the page body never passes through the model's output.
 
 - **PreToolUse hook** `scripts/notion_write_guard.py`
-  - Write `@@FILE:<path relative to the project root>@@` as `new_str` of `replace_content`, and the hook replaces it with the file contents
+  - Write `@@FILE:<path relative to the base directory>@@` as `new_str` of `replace_content`, and the hook replaces it with the file contents. The base directory is `CLAUDE_PROJECT_DIR`, then the hook payload's `cwd`, then the current directory — so it is the repository root under Claude Code regardless of where the session was started, and the session's `cwd` under Cowork (keep the local source inside the container there; connected folders live outside the base and are denied). See [SKILL.md](skills/notion-writeback/SKILL.md) for the per-environment table
   - Denies abuse of `update_content`: more than 3 calls per page per session, multiple replacements in one call, and calls against a page not fetched in this session
 - **Helper script** `scripts/notion_mirror.py`
   - `pull` — builds a local source file from the verbatim `notion-fetch` result stored in the session transcript
-  - `diff` — compares the local source with the fetch result after normalization (`CLEAN` / `DIRTY` / `STALE`)
+  - `diff` — compares the local source with the fetch result after normalization (`CLEAN` / `DIRTY` / `STALE`). Normalization folds Notion's auto-linking of bare filenames and domain-like tokens (`notion_mirror.py` → `notion_[mirror.py](http://mirror.py)`), but only where the link text equals its target, so hand-pasted links still show up as diffs
 - **Wrapper** `scripts/python.sh` — runs the Python scripts with whichever of `python3` / `python` / `py -3` exists, so the hook works on Linux, WSL, and Windows (Git Bash) alike. Exits 2 when none is found
 - **Agent** `notion-writeback:notion-fetcher` — a lightweight (haiku) subagent that only fetches and runs the script. It makes no judgment
 - **Skill** `/notion-writeback:notion-writeback` — the procedure: fetch → pull → edit → diff → `replace_content` (sentinel) → fetch again → `CLEAN`

@@ -26,6 +26,13 @@ DIRTY の意味は「ローカルと Notion が違う」だけ。運用は必ず
   - 自分がやっていない変更が混じる → Notion 側で誰かが直した。止まる。pull し直して編集を積み直す
   - 見覚えのない古い本文が出る     → 比較相手が古い fetch。fetch し直す
 
+差分行のラベル（difflib の tag は [] に併記する）。tag は a（＝ローカル）基準で付くので、
+**`delete` が自分の追記、`insert` が書き戻すと消える側**になる。逆に読まない：
+
+  - 追記(ローカルのみ)      [delete]  ローカルにあって Notion にない  → 自分の追記。安全側
+  - ⚠️消える(Notionのみ)    [insert]  Notion にあってローカルにない  → 書き戻すと消える。読む
+  - ⚠️食い違い              [replace] 両側にあって内容が違う          → 要確認
+
 終了コード 1 は **エラーではなく「差分を読め」の合図**（DIRTY と STALE の両方で 1）。
 
 実装上の落とし穴（実際に踏んだもの）
@@ -38,6 +45,11 @@ DIRTY の意味は「ローカルと Notion が違う」だけ。運用は必ず
   大きいページほどここに落ちるので、見ないと「fetch したのに STALE」になる。
 - 退避ファイルの探索は**当該セッションのディレクトリに限定**する。プロジェクト全体を
   glob すると過去セッションの古い本文を掴み、「古いアンカーで上書き」事故の入口になる。
+- Notion は保存時に「ドットを含む英数字トークン」を自動でリンクにする
+  （`notion_mirror.py` → `notion_[mirror.py](http://mirror.py)`）。放っておくと書き戻した
+  直後の diff が恒久的に DIRTY になり、収束しない。normalize() で「リンクテキストと
+  リンク先が一致するもの」だけを畳んで吸収する。ローカル正本側でバッククォートで
+  囲めばそもそも変換されない（SKILL.md「落ちる原因（既知）」）。
 """
 import argparse
 import json
@@ -208,8 +220,26 @@ def normalize(text: str) -> str:
     text = re.sub(r"<[^>]+>", "", text)      # <table_of_contents/> 等のタグ
     text = text.replace("\\", "")            # markdown エスケープ
     text = re.sub(r"\[ \]|\[x\]", "", text)  # チェックボックス
+    # Notion は保存時に「ドットを含む英数字トークン」を自動でリンクにする
+    # （notion_mirror.py → notion_[mirror.py](http://mirror.py)）。
+    # リンクテキストとリンク先が一致するものだけを畳む。テキストと URL が違う
+    # 「手で貼った本物のリンク」は畳まないので、それを消す編集は差分に残る。
+    # 🔴 残すのは \1（リンクテキストそのまま）。スキームを外した \2 を残すと
+    # [https://example.com](https://example.com) が example.com に畳まれ、
+    # ローカル正本側の素の https://example.com と一致しなくなる。
+    text = re.sub(r"\[((?:https?://)?([^\]]+?))\]\((?:https?://)?\2/?\)", r"\1", text)
     text = re.sub(r"[*#>|\-\t \n　​]", "", text)
     return text
+
+
+# difflib の tag は a（＝ローカル）基準。`delete` は自分の追記、`insert` が書き戻すと
+# 消える側になる。英単語のままだと逆に読まれる（#6）ので、意味を前に置いて出す。
+# 生の tag は [] で併記して残す（grep と既存の読み方を切らないため）。
+DIFF_LABELS = {
+    "delete":  "追記(ローカルのみ)",
+    "insert":  "⚠️消える(Notionのみ)",
+    "replace": "⚠️食い違い",
+}
 
 
 def compare(local: str, remote: str, label: str, context: int = 30) -> bool:
@@ -220,10 +250,11 @@ def compare(local: str, remote: str, label: str, context: int = 30) -> bool:
         print(f"CLEAN: {label}（正規化後 {len(a):,} 文字が一致）")
         return True
     print(f"DIRTY: {label} — {len(diffs)} 件の差分。"
-          "ローカルを編集済みなら自分の編集が出るのは正常。"
-          "自分がやっていない変更が混じっていないかを読む")
+          "追記(ローカルのみ)=自分の編集なら正常。"
+          "⚠️消える(Notionのみ)/⚠️食い違い=書き戻すと失われる側なので必ず読む")
     for tag, i1, i2, j1, j2 in diffs[:20]:
-        print(f"  - {tag}: ローカル={a[i1:i2]!r} / Notion={b[j1:j2]!r}")
+        print(f"  - {DIFF_LABELS.get(tag, tag)} [{tag}]: "
+              f"ローカル={a[i1:i2]!r} / Notion={b[j1:j2]!r}")
         print(f"    文脈 ローカル: …{a[max(0, i1 - context):i2 + context]}…")
         print(f"    文脈 Notion  : …{b[max(0, j1 - context):j2 + context]}…")
     if len(diffs) > 20:
@@ -268,8 +299,9 @@ def cmd_diff(args) -> int:
         return 1
     clean = compare(path.read_text(encoding="utf-8"), hit[1], str(path))
     if not clean:
-        print("⚠️ DIRTY は「書き戻すな」ではない。編集済みなら DIRTY が正常で、"
-              "読むのは差分の中身（自分がやっていない変更が混じっていないか）")
+        print("⚠️ DIRTY は「書き戻すな」ではない。編集済みなら DIRTY が正常。"
+              "読むのは ⚠️消える(Notionのみ) と ⚠️食い違い"
+              "（＝Notion 側にしかない＝書き戻すと消える）")
     # 終了コードは「人が差分を読んだか」を代弁できないので、DIRTY と STALE を 1 にする。
     return 0 if clean else 1
 
