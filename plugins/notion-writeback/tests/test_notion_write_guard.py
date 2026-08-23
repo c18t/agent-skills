@@ -37,11 +37,12 @@ class GuardTestCase(unittest.TestCase):
         os.makedirs(self.fake_home)
         self.session_id = f"test-{uuid.uuid4().hex}"
 
-    def run_guard(self, tool_input, env_extra=None, tool_name="mcp__notion__notion-update-page"):
+    def run_guard(self, tool_input, env_extra=None, tool_name="mcp__notion__notion-update-page",
+                  cwd=None):
         payload = {
             "tool_name": tool_name,
             "tool_input": tool_input,
-            "cwd": self.root,
+            "cwd": self.root if cwd is None else cwd,
             "session_id": self.session_id,
         }
         env = dict(os.environ)
@@ -104,7 +105,7 @@ class TestSentinelInjection(GuardTestCase):
         }
         proc, result = self.run_guard(ti)
         self.assertEqual(proc.returncode, 0)
-        self.assert_deny(result, "プロジェクト")
+        self.assert_deny(result, "基準ディレクトリ")
 
     def test_missing_file_is_denied(self):
         ti = {
@@ -133,6 +134,55 @@ class TestSentinelInjection(GuardTestCase):
         self.assertIsNotNone(result, "cp932 でも出力が消えてはいけない")
         self.assertEqual(
             result["hookSpecificOutput"]["updatedInput"]["new_str"], EMOJI_TEXT)
+
+
+class TestRootResolution(GuardTestCase):
+    """@@FILE: の基準ディレクトリは CLAUDE_PROJECT_DIR →フック入力の cwd →カレントの順。
+
+    cwd を先に見ると、リポジトリのサブディレクトリで Claude Code を起動しただけで
+    基準がそこへずれ、ドキュメントが言う「プロジェクトルートからの相対パス」が
+    起動位置任せになる（issue #4）。
+    """
+
+    def sentinel(self, rel):
+        return {
+            "command": "replace_content",
+            "page_id": PAGE_ID,
+            "new_str": f"@@FILE:{rel}@@",
+        }
+
+    def test_project_dir_wins_over_cwd(self):
+        """サブディレクトリで起動しても、ルート相対のパスが通る。"""
+        self.write_file(os.path.join("docs", "page.md"), EMOJI_TEXT)
+        sub = os.path.join(self.root, "sub")
+        os.makedirs(sub)
+        proc, result = self.run_guard(
+            self.sentinel("docs/page.md"),
+            env_extra={"CLAUDE_PROJECT_DIR": self.root},
+            cwd=sub)
+        self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8", "replace"))
+        self.assertEqual(
+            result["hookSpecificOutput"]["updatedInput"]["new_str"], EMOJI_TEXT)
+
+    def test_falls_back_to_cwd_without_project_dir(self):
+        """CLAUDE_PROJECT_DIR が無い環境（Cowork 等）では cwd が基準になる。"""
+        self.write_file(os.path.join("docs", "page.md"), EMOJI_TEXT)
+        proc, result = self.run_guard(self.sentinel("docs/page.md"))
+        self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8", "replace"))
+        self.assertEqual(
+            result["hookSpecificOutput"]["updatedInput"]["new_str"], EMOJI_TEXT)
+
+    def test_outside_project_dir_is_denied_even_when_inside_cwd(self):
+        """cwd の内側でも CLAUDE_PROJECT_DIR の外なら deny する（優先順位入れ替えの副作用）。"""
+        outside = os.path.dirname(self.root)
+        with open(os.path.join(outside, "outside.md"), "w", encoding="utf-8") as f:
+            f.write("secret\n")
+        proc, result = self.run_guard(
+            self.sentinel("../outside.md"),
+            env_extra={"CLAUDE_PROJECT_DIR": self.root},
+            cwd=outside)
+        self.assertEqual(proc.returncode, 0)
+        self.assert_deny(result, "基準ディレクトリ")
 
 
 class TestPageIdValidation(GuardTestCase):

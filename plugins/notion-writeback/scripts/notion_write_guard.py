@@ -7,7 +7,8 @@ notion-update-page の呼び出しを実行前に検査する。目的は 4 つ�
 2. **update_content の抑制** — 1 回に複数置換をまとめない／1 ページ 3 回まで、を deny で強制する。
    「ルールを読んで従う」は繰り返し破られたので、意図ではなくフックで止める。
 3. **@@FILE: センチネル注入** — replace_content の new_str / insert_content の content に
-   `@@FILE:<プロジェクト相対パス>@@` と書くと、このフックがファイル実体を読んで引数に差し替える。
+   `@@FILE:<基準ディレクトリからの相対パス>@@` と書くと、このフックがファイル実体を読んで
+   引数に差し替える。基準ディレクトリは `CLAUDE_PROJECT_DIR` →フック入力の `cwd` →カレントの順。
    ページ全文がモデルの出力を一切経由しないので、化け・転記ミス・記憶からの捏造が
    原理的に起きない。数万字ページの「正確に転記できない」問題の恒久対策。
 4. **fetch していないページへの update_content の拒否** — old_str は Notion の**現物**と
@@ -94,9 +95,13 @@ def main():
     if cmd not in ("update_content", "replace_content", "insert_content"):
         sys.exit(0)  # update_properties 等は対象外
 
-    # プロジェクトルート＝フック入力の cwd（無ければ CLAUDE_PROJECT_DIR、無ければカレント）。
+    # 基準ディレクトリ＝CLAUDE_PROJECT_DIR（無ければフック入力の cwd、無ければカレント）。
+    # Claude Code では起動位置に関わらずリポジトリルートが入るので、
+    # 「プロジェクトルートからの相対パス」という説明が実際に真になる。
+    # cwd を先に見ると、サブディレクトリで起動しただけで基準がそこへずれる。
+    # Cowork には CLAUDE_PROJECT_DIR が無いのでセッションの cwd に落ちる。
     root = os.path.realpath(
-        data.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
+        os.environ.get("CLAUDE_PROJECT_DIR") or data.get("cwd") or os.getcwd())
 
     # --- 1. ページ ID の形式検査 -------------------------------------------
     page_id = str(ti.get("page_id") or "").replace("-", "").lower()
@@ -115,11 +120,11 @@ def main():
             rel = m.group(1).strip()
             path = os.path.realpath(os.path.join(root, rel))
             if not path.startswith(root + os.sep):
-                deny(f"@@FILE:@@ に指定できるのはプロジェクト（{root}）内のファイルだけ: {rel}")
+                deny(f"@@FILE:@@ に指定できるのは基準ディレクトリ（{root}）内のファイルだけ: {rel}")
             if not os.path.isfile(path):
                 deny(
                     f"@@FILE:@@ のファイルが見つからない: {rel}"
-                    f"（プロジェクトルート {root} からの相対パスで指定する。例 @@FILE:docs/page.md@@）"
+                    f"（基準ディレクトリ {root} からの相対パスで指定する。例 @@FILE:docs/page.md@@）"
                 )
             with open(path, encoding="utf-8") as f:
                 content = f.read()

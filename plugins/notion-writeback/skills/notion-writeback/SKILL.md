@@ -34,8 +34,19 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 スクリプトはプラグインの `scripts/` にある：`sh "${CLAUDE_PLUGIN_ROOT}/scripts/python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py"`。
 `python.sh` は `python3` / `python` / `py -3` のうち最初に見つかったもので実行するラッパー。
 **`python3` を直接叩かない**——Windows では `python3` が無いことが多く、環境ごとにコマンド名が違う。
-ページは ID でも URL でも指定できる。ローカル正本の置き場はプロジェクト内なら自由（例 `docs/notion/<ページ名>.md`）。
-`@@FILE:` のパスは**プロジェクトルートからの相対パス**。
+ページは ID でも URL でも指定できる。
+
+### `@@FILE:` のパスの基準
+
+`@@FILE:` のパスは**基準ディレクトリからの相対パス**で、基準は
+`CLAUDE_PROJECT_DIR` →フック入力の `cwd` →カレントの順に決まる。**環境によって何が入るかが違う。**
+
+| 環境 | 基準ディレクトリ | ローカル正本の置き場 |
+| --- | --- | --- |
+| Claude Code | `CLAUDE_PROJECT_DIR`＝リポジトリルート（**起動位置に依らない**） | プロジェクト内なら自由。ルート相対で指す（例 `docs/notion/<ページ名>.md`） |
+| Cowork（クラウド） | セッションの `cwd`（例 `/home/claude`） | **コンテナ内に置く。** 接続フォルダ（`/mnt/user-data/uploads/...`）は基準の外なので deny される |
+
+基準の外は指せない（`../` で抜けるのも deny）。**指したいならコンテナ内へコピーしてから指す。**
 
 ## 手順
 
@@ -54,6 +65,9 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 - **1-b** `sh "${CLAUDE_PLUGIN_ROOT}/scripts/python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py" pull --page <ID or URL> --out <ローカル正本>`
 - 🔴 **`pull` を回してよいのは、未書き戻しのローカル編集が無いときだけ。** 編集を積んだ状態で回すと**消える**。
   既にローカル正本があり編集済みなら 1 は飛ばして 2 へ
+- 📌 **Cowork では正本をコンテナ内に置く**（例 `~/notion/<ページ名>.md`）。接続フォルダに置いたままだと
+  `@@FILE:` から指せない（→「`@@FILE:` のパスの基準」）。接続フォルダの既存ファイルを使うなら、
+  **先にコンテナ内へコピーしてから**そのコピーを正本にする
 
 ### 2. ローカル正本を編集する
 
@@ -118,6 +132,8 @@ fetch と `notion_mirror.py` の実行は投げてよい。**境界は「機構�
   センチネルは「全文を差し替える」道具。追記も `replace_content`（ローカル正本を追記済みにしてから全文を送る）
 - **表のセルの中に表の構造タグと同じ字面** … バッククォートで囲んでもパーサが表を打ち切る。日本語で言い換える
 - **`notion-create-pages` にセンチネル** … フックは `notion-update-page` にしか掛からない。新規ページは先に空で作り、その ID に `replace_content`＋センチネルで本文を入れる
+- **接続フォルダのファイルを `@@FILE:` から指した** … Cowork の接続フォルダは `/mnt/user-data/uploads/...` に着地し、基準ディレクトリ（`cwd`）の外なので deny される。
+  **コンテナ内へコピーしてからそのパスを指す**（→「`@@FILE:` のパスの基準」）
 
 Notion MCP 全般の実測（fetch の上限、`notion-search` のラグ、リストの再採番など）は [reference/notion-mcp-notes.md](reference/notion-mcp-notes.md)。
 

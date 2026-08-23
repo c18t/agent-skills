@@ -10,7 +10,7 @@ Exposure scales with the **number of calls**, not the payload size — "split lo
 This plugin creates a path where the page body never passes through the model's output.
 
 - **PreToolUse hook** `scripts/notion_write_guard.py`
-  - Write `@@FILE:<path relative to the project root>@@` as `new_str` of `replace_content`, and the hook replaces it with the file contents
+  - Write `@@FILE:<path relative to the base directory>@@` as `new_str` of `replace_content`, and the hook replaces it with the file contents. The base directory is `CLAUDE_PROJECT_DIR`, then the hook payload's `cwd`, then the current directory — so it is the repository root under Claude Code regardless of where the session was started, and the session's `cwd` under Cowork (keep the local source inside the container there; connected folders live outside the base and are denied). See [SKILL.md](skills/notion-writeback/SKILL.md) for the per-environment table
   - Denies abuse of `update_content`: more than 3 calls per page per session, multiple replacements in one call, and calls against a page not fetched in this session
 - **Helper script** `scripts/notion_mirror.py`
   - `pull` — builds a local source file from the verbatim `notion-fetch` result stored in the session transcript
