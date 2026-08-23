@@ -1,6 +1,6 @@
-# issue-worktree
+# issue-flow
 
-Two skills covering both ends of an issue: `issue-draft` writes one, `issue-worktree` works it through to a squash merge.
+Two skills covering both ends of an issue: `issue-draft` writes one, `issue-work` works it through to a squash merge.
 
 ## Problem
 
@@ -10,7 +10,7 @@ and that only becomes visible when the PR turns out to have no diff.
 
 `cd` is not a fix either: the working directory moves, but write access, `CLAUDE.md`, and settings stay with the main checkout.
 
-`issue-worktree` makes the move explicit with the built-in `EnterWorktree` tool, so the isolation is enforced by the harness — edits against the main checkout are blocked for the rest of the session.
+`issue-work` makes the move explicit with the built-in `EnterWorktree` tool, so the isolation is enforced by the harness — edits against the main checkout are blocked for the rest of the session.
 
 Writing the issue has its own recurring decisions: which of the repository's actual labels applies, English title and Japanese body, and leaving the *reasoning* behind each item so picking the work up later does not mean re-deciding it. `issue-draft` fixes those, and holds the body for review before anything is created.
 
@@ -26,11 +26,11 @@ Given a free-form topic:
 4. Titles it in English as `<target>: <english>`, bodies it in Japanese, and records the reasoning behind each item
 5. **Writes the full title, labels, and body into the chat for review — it does not call `gh issue create`**
 6. Creates the issue once you approve, passing the body via `--body-file`
-7. Reports the URL and hands you `/issue-worktree:issue-worktree <number>` — it does not start the work itself
+7. Reports the URL and hands you `/issue-flow:issue-work <number>` — it does not start the work itself
 
 Issue and PR numbers are assigned at creation, so the body is written without them; a cross-reference is added afterwards with `gh issue edit`.
 
-### `issue-worktree` — working it
+### `issue-work` — working it
 
 Given an issue number:
 
@@ -58,18 +58,18 @@ entry is added before `EnterWorktree` (step 4) and removed after `ExitWorktree` 
 ## Prerequisites
 
 - `gh` on `PATH` and authenticated (`gh auth status`) — neither skill authenticates for you
-- A git repository with a remote (`issue-worktree`)
-- `EnterWorktree` needs your approval on first entry, because the worktree lives outside `.claude/worktrees/` (`issue-worktree`)
+- A git repository with a remote (`issue-work`)
+- `EnterWorktree` needs your approval on first entry, because the worktree lives outside `.claude/worktrees/` (`issue-work`)
 
 ## Usage
 
 ```text
-/issue-worktree:issue-draft add a skill for creating issues
-/issue-worktree:issue-worktree 123
+/issue-flow:issue-draft add a skill for creating issues
+/issue-flow:issue-work 123
 ```
 
 See [skills/issue-draft/SKILL.md](skills/issue-draft/SKILL.md) and
-[skills/issue-worktree/SKILL.md](skills/issue-worktree/SKILL.md) for the full procedures (Japanese).
+[skills/issue-work/SKILL.md](skills/issue-work/SKILL.md) for the full procedures (Japanese).
 
 ## Notes
 

@@ -11,9 +11,9 @@
       "category": "productivity"
     },
     {
-      "name": "issue-worktree",
-      "description": "GitHub issue を作る側と片付ける側の 2 スキル。issue を起草してレビューを経て作成し、issue 番号から worktree を作ってセッションごと移動して、解決・PR 作成・squash merge・worktree の片付けまで進める",
-      "source": "./plugins/issue-worktree",
+      "name": "issue-flow",
+      "description": "GitHub issue を起点にしたワークフローのスキルセット。issue を起草してレビューを経て作成し、issue 番号から worktree を作ってセッションごと移動して、解決・PR 作成・squash merge・worktree の片付けまで進める",
+      "source": "./plugins/issue-flow",
       "category": "workflow"
     }
   ]
