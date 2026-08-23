@@ -153,10 +153,33 @@ PR 本文は手順 9 で承認されたものをそのまま使う。作成後�
 
 ### 11. CI を待ち、マージの確認を取る
 
+まず現状を見る。**already 完了していることがあるので、待つ前に確認する。**
+
 ```bash
-gh pr checks --watch
-gh pr view --json mergeStateStatus,reviewDecision
+gh pr checks <PR番号> --json name,bucket --jq '.[] | "\(.name): \(.bucket)"'
+gh pr view <PR番号> --json mergeable,mergeStateStatus
 ```
+
+`pending` が残っていれば `Monitor` ツールで待つ。`gh pr checks --watch` は**セッションを
+ブロックする**ので使わない。Monitor なら結果が届くまで他の作業を続けられる。
+
+```bash
+while true; do
+  gh pr checks <PR番号> --json name,bucket \
+    --jq '.[] | select(.bucket != "pending") | "\(.name): \(.bucket)"' || true
+  gh pr checks <PR番号> --json bucket --jq 'all(.[]; .bucket != "pending")' | grep -q true && break
+  sleep 30
+done
+```
+
+`bucket` は `pass` / `fail` / `pending` / `skipping` / `cancel` を取るので、**成功だけを
+拾う書き方にしない**（落ちたことに気づけなくなる）。上の形は完了したものを全部出す。
+
+⚠️ jq の `all` は `all(.[]; <条件>)` の形で書く。`all(<条件>)` だと配列自身に条件が
+適用されて常に真になり、**CI を待たずに素通りする。**
+
+⚠️ worktree に滞在中は、プロセス置換（`<(...)`）やリダイレクトを含む複雑なコマンドが
+ハーネスに弾かれることがある。**パイプまでの素直な形で書く。**
 
 CI が落ちたら直してコミットし直す。**落ちたままマージへ進まない。**
 
