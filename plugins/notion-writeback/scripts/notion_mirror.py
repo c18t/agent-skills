@@ -26,6 +26,13 @@ DIRTY の意味は「ローカルと Notion が違う」だけ。運用は必ず
   - 自分がやっていない変更が混じる → Notion 側で誰かが直した。止まる。pull し直して編集を積み直す
   - 見覚えのない古い本文が出る     → 比較相手が古い fetch。fetch し直す
 
+差分行のラベル（difflib の tag は [] に併記する）。tag は a（＝ローカル）基準で付くので、
+**`delete` が自分の追記、`insert` が書き戻すと消える側**になる。逆に読まない：
+
+  - 追記(ローカルのみ)      [delete]  ローカルにあって Notion にない  → 自分の追記。安全側
+  - ⚠️消える(Notionのみ)    [insert]  Notion にあってローカルにない  → 書き戻すと消える。読む
+  - ⚠️食い違い              [replace] 両側にあって内容が違う          → 要確認
+
 終了コード 1 は **エラーではなく「差分を読め」の合図**（DIRTY と STALE の両方で 1）。
 
 実装上の落とし穴（実際に踏んだもの）
@@ -225,6 +232,16 @@ def normalize(text: str) -> str:
     return text
 
 
+# difflib の tag は a（＝ローカル）基準。`delete` は自分の追記、`insert` が書き戻すと
+# 消える側になる。英単語のままだと逆に読まれる（#6）ので、意味を前に置いて出す。
+# 生の tag は [] で併記して残す（grep と既存の読み方を切らないため）。
+DIFF_LABELS = {
+    "delete":  "追記(ローカルのみ)",
+    "insert":  "⚠️消える(Notionのみ)",
+    "replace": "⚠️食い違い",
+}
+
+
 def compare(local: str, remote: str, label: str, context: int = 30) -> bool:
     a, b = normalize(local), normalize(remote)
     sm = SequenceMatcher(None, a, b, autojunk=False)
@@ -233,10 +250,11 @@ def compare(local: str, remote: str, label: str, context: int = 30) -> bool:
         print(f"CLEAN: {label}（正規化後 {len(a):,} 文字が一致）")
         return True
     print(f"DIRTY: {label} — {len(diffs)} 件の差分。"
-          "ローカルを編集済みなら自分の編集が出るのは正常。"
-          "自分がやっていない変更が混じっていないかを読む")
+          "追記(ローカルのみ)=自分の編集なら正常。"
+          "⚠️消える(Notionのみ)/⚠️食い違い=書き戻すと失われる側なので必ず読む")
     for tag, i1, i2, j1, j2 in diffs[:20]:
-        print(f"  - {tag}: ローカル={a[i1:i2]!r} / Notion={b[j1:j2]!r}")
+        print(f"  - {DIFF_LABELS.get(tag, tag)} [{tag}]: "
+              f"ローカル={a[i1:i2]!r} / Notion={b[j1:j2]!r}")
         print(f"    文脈 ローカル: …{a[max(0, i1 - context):i2 + context]}…")
         print(f"    文脈 Notion  : …{b[max(0, j1 - context):j2 + context]}…")
     if len(diffs) > 20:
@@ -281,8 +299,9 @@ def cmd_diff(args) -> int:
         return 1
     clean = compare(path.read_text(encoding="utf-8"), hit[1], str(path))
     if not clean:
-        print("⚠️ DIRTY は「書き戻すな」ではない。編集済みなら DIRTY が正常で、"
-              "読むのは差分の中身（自分がやっていない変更が混じっていないか）")
+        print("⚠️ DIRTY は「書き戻すな」ではない。編集済みなら DIRTY が正常。"
+              "読むのは ⚠️消える(Notionのみ) と ⚠️食い違い"
+              "（＝Notion 側にしかない＝書き戻すと消える）")
     # 終了コードは「人が差分を読んだか」を代弁できないので、DIRTY と STALE を 1 にする。
     return 0 if clean else 1
 
