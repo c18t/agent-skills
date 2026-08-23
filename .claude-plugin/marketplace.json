@@ -12,7 +12,7 @@
     },
     {
       "name": "issue-flow",
-      "description": "GitHub issue を起点にしたワークフローのスキルセット。issue を起草してレビューを経て作成し、issue 番号から worktree を作ってセッションごと移動して、解決・PR 作成・squash merge・worktree の片付けまで進める",
+      "description": "GitHub issue を起点にしたワークフローのスキルセット。issue を起草してレビューを経て作成し、issue 番号から worktree を作ってセッションごと移動して解決・PR 作成・squash merge まで進め、1 本ずつマージできない複数 PR は release ブランチで統合する",
       "source": "./plugins/issue-flow",
       "category": "workflow"
     }
