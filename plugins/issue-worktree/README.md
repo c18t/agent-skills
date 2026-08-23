@@ -26,7 +26,8 @@ Given an issue number:
 8. Commits using Conventional Commits (freely, in as many commits as the work needs)
 9. **Writes the PR body into the chat for review — it does not call `gh pr create`**
 10. Pushes and opens the PR once you approve
-11. Waits for CI, then asks for merge approval with the squash commit message it intends to use
+11. Waits for CI via `scripts/watch-pr.sh` under the Monitor tool, then asks for merge approval
+    with the squash commit message it intends to use
 12. Squash-merges with `--subject`/`--body-file`, leaves the worktree, removes it, and drops its `folders` entry
 
 Step 12 passes an explicit subject and body because GitHub otherwise defaults the squash commit
