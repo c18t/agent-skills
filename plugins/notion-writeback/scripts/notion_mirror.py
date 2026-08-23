@@ -38,6 +38,11 @@ DIRTY の意味は「ローカルと Notion が違う」だけ。運用は必ず
   大きいページほどここに落ちるので、見ないと「fetch したのに STALE」になる。
 - 退避ファイルの探索は**当該セッションのディレクトリに限定**する。プロジェクト全体を
   glob すると過去セッションの古い本文を掴み、「古いアンカーで上書き」事故の入口になる。
+- Notion は保存時に「ドットを含む英数字トークン」を自動でリンクにする
+  （`notion_mirror.py` → `notion_[mirror.py](http://mirror.py)`）。放っておくと書き戻した
+  直後の diff が恒久的に DIRTY になり、収束しない。normalize() で「リンクテキストと
+  リンク先が一致するもの」だけを畳んで吸収する。ローカル正本側でバッククォートで
+  囲めばそもそも変換されない（SKILL.md「落ちる原因（既知）」）。
 """
 import argparse
 import json
@@ -208,6 +213,14 @@ def normalize(text: str) -> str:
     text = re.sub(r"<[^>]+>", "", text)      # <table_of_contents/> 等のタグ
     text = text.replace("\\", "")            # markdown エスケープ
     text = re.sub(r"\[ \]|\[x\]", "", text)  # チェックボックス
+    # Notion は保存時に「ドットを含む英数字トークン」を自動でリンクにする
+    # （notion_mirror.py → notion_[mirror.py](http://mirror.py)）。
+    # リンクテキストとリンク先が一致するものだけを畳む。テキストと URL が違う
+    # 「手で貼った本物のリンク」は畳まないので、それを消す編集は差分に残る。
+    # 🔴 残すのは \1（リンクテキストそのまま）。スキームを外した \2 を残すと
+    # [https://example.com](https://example.com) が example.com に畳まれ、
+    # ローカル正本側の素の https://example.com と一致しなくなる。
+    text = re.sub(r"\[((?:https?://)?([^\]]+?))\]\((?:https?://)?\2/?\)", r"\1", text)
     text = re.sub(r"[*#>|\-\t \n　​]", "", text)
     return text
 
