@@ -11,7 +11,7 @@ description: "やりたいことを受け取って GitHub issue の本文を起�
 **チャットに全文を書き出してユーザーのレビューを待つ。** 承認されたら `gh issue create` で作り、
 作った issue に着手するための導線を示して終わる。
 
-ユーザーの承認を取るのは 1 箇所（手順 6 の本文レビュー）。それ以外は続けて進んでよい。
+ユーザーの承認を取るのは 1 箇所（手順 6 の本文レビュー）。それ以外は続けて進めてよい。
 
 GitHub の読み書きは `gh` CLI か GitHub MCP のどちらかで行う。着手前に
 [../issue-work/reference/github-mcp.md](../issue-work/reference/github-mcp.md) の判定順で
