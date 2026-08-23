@@ -15,6 +15,12 @@ PR 同士が衝突するかを事前に確かめ、`release/<プラグイン名>
 ユーザーの承認を取るのは 3 箇所（手順 2 の統合方針、手順 9 の PR 本文、手順 11 のマージ）。
 それ以外は続けて進めてよい。
 
+GitHub の読み書きは `gh` CLI か GitHub MCP のどちらかで行う。着手前に
+[../issue-work/reference/github-mcp.md](../issue-work/reference/github-mcp.md) の判定順で
+経路を 1 回だけ決める。ただし 🔴 **このスキルの release ブランチは `git push` できる認証が必須**
+（`push_files` で代用すると各 PR の head SHA が乗らず、自動クローズが全滅する。同ファイルの注意）。
+push の認証が無い環境では手順 6 の push 前に止まってユーザーに伝える。
+
 このスキルは複数 PR を**まとめて出す**側。1 本で完結する PR は `issue-work` スキルの担当で、
 このスキルからは呼び出さない（リリースには対応する issue が無く、入口が違う）。
 重なるのは worktree 作成 → `EnterWorktree` → 片付けの 3 点セットだけで、それも自前で持つ。
@@ -26,10 +32,14 @@ PR 同士が衝突するかを事前に確かめ、`release/<プラグイン名>
 
 ### 1. 対象 PR を読み、衝突を事前に検出する
 
+取得するもの: 各 PR の head/base ブランチ・state・本文と、コミットメッセージ本体。
+
 ```bash
 gh pr view <番号> --json number,title,headRefName,baseRefName,state,mergeable,body
 gh pr view <番号> --json commits --jq '.commits[].messageBody'
 ```
+
+MCP 経路は `pull_request_read`（method: `get` と `get_commits`）。
 
 head ブランチ名と、`resolves:` が **PR 本文だけにあるのか、コミットメッセージにもあるのか**を
 記録する（手順 12 の判断材料）。
@@ -172,6 +182,8 @@ git push
 gh pr create --base <デフォルトブランチ> --title "release: <プラグイン名> <version>" --body-file <本文ファイル>
 ```
 
+PR 作成の MCP 経路は `create_pull_request`（push は 🔴 `git push` のみ。冒頭の注意）。
+
 CI は同梱スクリプトを `Monitor` ツールの `command` に渡して待つ。
 
 ```bash
@@ -181,6 +193,8 @@ sh "${CLAUDE_PLUGIN_ROOT}/scripts/watch-pr.sh" <PR番号>
 🔴 `gh pr checks --watch` は使わない。監視ループを Monitor に直接書かない（worktree 滞在中は
 ハーネスに弾かれる）。詳細は `issue-work` スキルの
 [reference/ci-watch.md](../issue-work/reference/ci-watch.md)。
+`gh` が無い環境ではスクリプトも動かないので、ポーリングせず都度確認に倒す
+（同ファイルの「`gh` が無い環境では都度確認に倒す」）。
 
 CI が落ちたら直してコミットし直す。**落ちたままマージへ進まない。**
 
@@ -206,6 +220,8 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
   gh pr merge <PR番号> --merge --subject "release: <プラグイン名> <version>"
   ```
 
+  MCP 経路は `merge_pull_request`（`merge_method: merge`、`commit_title` に同じタイトル）。
+
   🔴 **`--squash` を使わない**（含まれる PR が 1 本も自動クローズしなくなる）。
   🔴 **`--delete-branch` を付けない**（ローカル側が worktree に checkout されたまま。削除は 12-c）。
   失敗したときは、再実行の前に `gh pr view <PR番号> --json state,mergedAt` でマージ済みか確かめる。
@@ -223,11 +239,15 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
   gh issue list --state open
   ```
 
+  MCP 経路は `pull_request_read`（method: `get`）と `list_issues`（state: `OPEN`）。
+
 - **12-b** 閉じ損ねを手当てする
 
   ```bash
   gh issue close <番号> --comment "..."
   ```
+
+  MCP 経路は `add_issue_comment` → `issue_write`（method: `update`、`state: closed`）。
 
   **どのコミットで対応したかをコメントに残す。** PR が OPEN のまま残っていたら、
   head が main に到達しているかを確認する。
@@ -266,6 +286,7 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
 | ファイル | 内容 |
 | --- | --- |
 | [reference/troubleshooting.md](reference/troubleshooting.md) | 落ちる原因（既知）、統合をやめるとき、base 張り替えの実害 |
+| [../issue-work/reference/github-mcp.md](../issue-work/reference/github-mcp.md) | 経路の判定と、gh ↔ GitHub MCP の対応表（release ブランチの push は git 必須） |
 | [reference/conflict-detection.md](reference/conflict-detection.md) | `git merge-tree` の版ごとの書式と判定、`mergeable` が使えない理由 |
 | [reference/rename-merge.md](reference/rename-merge.md) | リネームを含む PR の統合で新規ファイルが旧ディレクトリに着地する罠、旧名残留の grep |
 | [reference/auto-close.md](reference/auto-close.md) | PR と issue の自動クローズ条件と、挙動が割れた実例 |

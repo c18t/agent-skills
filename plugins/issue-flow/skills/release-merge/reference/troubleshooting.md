@@ -93,6 +93,13 @@ base の張り替えを選んでよいのは、`deleteBranchOnMerge` が無効�
 - **監視ループを Monitor の `command` に直接書く** … worktree 滞在中はハーネスに弾かれる。
   `scripts/watch-pr.sh` に逃がす。詳細は `issue-work` スキルの
   [reference/ci-watch.md](../../issue-work/reference/ci-watch.md)
+- **`gh` が無い環境（Cowork など）で `watch-pr.sh` を使おうとする** … スクリプトは
+  `gh pr checks` 前提で動かない。ポーリングせず都度確認に倒す
+  （[ci-watch.md](../../issue-work/reference/ci-watch.md) の「`gh` が無い環境では都度確認に倒す」）
+- **`gh` も `git push` の認証も無い環境で release ブランチを push しようとする** …
+  `push_files` での代用は 🔴 不可（head SHA が変わり自動クローズが全滅する）。
+  手順 6 の push 前に止まってユーザーに伝える
+  （[github-mcp.md](../../issue-work/reference/github-mcp.md)）
 
 ## 片付けまわり
 

@@ -13,6 +13,11 @@ PR 本文をユーザーにレビューしてもらってから PR を作る。
 
 ユーザーの承認を取るのは 2 箇所（手順 9 の PR 本文と手順 11 のマージ）。それ以外は続けて進めてよい。
 
+GitHub の読み書きは `gh` CLI か GitHub MCP のどちらかで行う。着手前に
+[reference/github-mcp.md](reference/github-mcp.md) の判定順で経路を 1 回だけ決める
+（`gh auth status` が通れば gh、通らなければ MCP、どちらも無ければ止まる）。
+以降の手順は gh のコマンドで書く。MCP 経路では同ファイルの対応表で読み替える。
+
 うまくいかないときは [reference/troubleshooting.md](reference/troubleshooting.md) を見る。
 途中で止めるときの扱いも同じファイルにある。
 
@@ -20,12 +25,16 @@ PR 本文をユーザーにレビューしてもらってから PR を作る。
 
 ### 1. issue を読む
 
+取得するもの: issue のタイトル・本文・ラベル・コメント全部。
+
 ```bash
 gh issue view <番号>
 gh issue view <番号> --comments
 ```
 
-タイトル・本文・ラベル・コメントまで読む。**ここで読んだ内容が手順 6 の判断材料になる**ので、
+MCP 経路は `issue_read`（method: `get` と `get_comments`）。
+
+**ここで読んだ内容が手順 6 の判断材料になる**ので、
 番号とタイトルだけ取って先に進まない（`--comments` を付けると本文が出ないので、2 回に分けて読む）。
 
 issue が存在しない・権限が無い等で失敗したら**そこで止まる。**
@@ -75,6 +84,9 @@ git show-ref --verify --quiet "refs/heads/<ブランチ名>" && echo exists || e
 `git worktree list` で登録を確認する。
 
 ### 4. `*.code-workspace` に worktree を登録する
+
+**ローカル限定**（VSCode に worktree を見せるための手順）。Cowork などエディタが
+リポジトリを開いていない環境ではスキップしてよい（その場合は 12-d もスキップする）。
 
 **移動する前に行う。** このファイルはメインチェックアウト側にあり、移動後は編集が弾かれる。
 
@@ -145,21 +157,28 @@ PR テンプレートを決めて、見出しを埋めた本文をチャット�
 
 ### 10. 承認されたら PR を作る
 
+やること: ブランチを push し、承認された本文で PR を作る。
+
 ```bash
 git push -u origin <ブランチ名>
 gh pr create --title "<タイトル>" --body-file <本文ファイル>
 ```
 
+MCP 経路は `create_branch` → `push_files` → `create_pull_request`（`git push` の認証が
+無い環境向け。1 コミットに畳まれる注意は [reference/github-mcp.md](reference/github-mcp.md)）。
+
 PR 本文は手順 9 で承認されたものをそのまま使う。作成後、PR の URL を伝える。
 
 ### 11. CI を待ち、マージの確認を取る 🛑
 
-まず現状を見る（既に完了していることがある）。
+まず現状を見る（既に完了していることがある）。見るのは CI チェックの結果全件とマージ可否。
 
 ```bash
 gh pr checks <PR番号> --json name,bucket --jq '.[] | "\(.name): \(.bucket)"'
 gh pr view <PR番号> --json mergeable,mergeStateStatus
 ```
+
+MCP 経路は `pull_request_read`（method: `get_check_runs` と `get`）。
 
 `pending` が残っていれば、同梱スクリプトを `Monitor` ツールの `command` に渡して待つ。
 
@@ -170,6 +189,8 @@ sh "${CLAUDE_PLUGIN_ROOT}/scripts/watch-pr.sh" <PR番号>
 🔴 `gh pr checks --watch` は使わない。監視ループを Monitor に直接書かない
 （worktree 滞在中はハーネスに弾かれる）。理由とスクリプトが担う判断は
 [reference/ci-watch.md](reference/ci-watch.md)。
+`gh` が無い環境ではスクリプトも動かないので、ポーリングせず都度確認に倒す
+（同ファイルの「`gh` が無い環境では都度確認に倒す」）。
 
 CI が落ちたら直してコミットし直す。**落ちたままマージへ進まない。**
 
@@ -198,8 +219,12 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
     --body-file <本文ファイル>
   ```
 
-  `--subject` と `--body-file` は必ず渡す（省くと GitHub が各コミットのメッセージを連結した
-  本文を既定にする）。🔴 **`--delete-branch` は付けない**（ローカル側が worktree に
+  MCP 経路は `merge_pull_request`（`merge_method: squash`、承認されたタイトルを `commit_title`、
+  本文を `commit_message` に渡す）。
+
+  `--subject` と `--body-file`（MCP なら `commit_title` / `commit_message`）は必ず渡す
+  （省くと GitHub が各コミットのメッセージを連結した本文を既定にする）。
+  🔴 **`--delete-branch` は付けない**（ローカル側が worktree に
   checkout されたままなので失敗する。削除は 12-c）。
 
   失敗したときは、再実行の前に `gh pr view <PR番号> --json state,mergedAt` でマージ済みか確かめる。
@@ -216,10 +241,12 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
   この順序で行う（worktree を先に消さないとブランチは checkout 中の扱いで消せない）。
   `git worktree remove` が未コミットの変更を理由に拒んだら、**`--force` を付けずに止まり**
   ユーザーに伝える。`git push origin --delete` が「remote ref does not exist」で失敗するのは
-  自動削除の設定によるもので正常。
+  自動削除の設定によるもので正常。MCP 経路にリモートブランチの削除ツールは無い
+  （自動削除設定に任せ、残ったら伝える）。
 
 - **12-d** `*.code-workspace` から worktree の記載を消す
 
+  手順 4 をスキップした環境（Cowork など）ではここもスキップする。
   手順 4 で追記した `folders` の要素だけを **Edit で**取り除く。メイン自身の要素・
   他の worktree の要素・`settings` などは残し、新規作成していた場合もファイルごとは消さない。
   メインチェックアウト側への書き込みなので **12-a で出た後に**行う。
@@ -236,5 +263,6 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 | --- | --- |
 | [reference/troubleshooting.md](reference/troubleshooting.md) | 落ちる原因（既知）、中断時の扱い、`*.code-workspace` 編集の分岐 |
 | [reference/rename-branch.md](reference/rename-branch.md) | 作業途中でブランチ名を変える手順 |
-| [reference/ci-watch.md](reference/ci-watch.md) | CI 監視の制約と `watch-pr.sh` が担う判断 |
+| [reference/ci-watch.md](reference/ci-watch.md) | CI 監視の制約と `watch-pr.sh` が担う判断、`gh` が無い環境での都度確認 |
+| [reference/github-mcp.md](reference/github-mcp.md) | 経路の判定と、gh ↔ GitHub MCP の対応表 |
 | [templates/pull_request.md](templates/pull_request.md) | リポジトリに PR テンプレートが無いときの既定 |

@@ -1,6 +1,8 @@
 # CI の監視と worktree 滞在中の制約
 
 `issue-work` スキルの手順 11（`release-merge` スキルでは手順 10）から参照する。
+このページの `gh` / `watch-pr.sh` は gh 経路のもの。`gh` が無い環境（Cowork など）は
+最後の「`gh` が無い環境では都度確認に倒す」を読む。
 
 ## `gh pr checks --watch` を使わない
 
@@ -46,3 +48,21 @@ gh pr view <PR番号> --json mergeable,mergeStateStatus
 ```
 
 `pending` が残っているときだけ Monitor で待つ。
+
+## `gh` が無い環境では都度確認に倒す
+
+`watch-pr.sh` は `gh pr checks` 前提なので、`gh` が無い環境（Cowork など。経路の判定は
+[github-mcp.md](github-mcp.md)）では動かない。そして `Monitor` の `command` はシェルしか
+実行できず、MCP ツールを呼ぶ手段が無い。つまり **MCP 経路ではポーリング監視をしない。**
+代わりに都度確認する。
+
+- `pull_request_read`（method: `get_check_runs`）で check run を**全件**見る。
+  **成功だけを拾わない**のはスクリプトと同じ。conclusion の `failure` / `cancelled` /
+  `timed_out` も終端で、見落とすと落ちた CI に気づけない
+- `queued` / `in_progress` が残っていたら、どれくらい待つかを伝えてから時間を置き、
+  同じ呼び出しを繰り返す。完了通知は来ない
+- 全部終わったら `pull_request_read`（method: `get`）の mergeable 系フィールドで
+  マージ可能かを見る（`gh pr view --json mergeable,mergeStateStatus` 相当）
+
+スクリプトが引き受けている 3 つの判断のうち「成功だけを拾わない」はここでも守る。
+「差分だけを出す」「jq の `all`」はポーリングしないので関係しない。

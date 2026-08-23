@@ -42,7 +42,12 @@ worktree のディレクトリは残るので、`EnterWorktree` に同じ `path`
 
 ## `gh` まわり
 
-- **`gh` が未認証** … 手順 1 で落ちる。`gh auth status` を案内する。認証を代行しない
+- **`gh` が未認証** … 手順 1 で落ちる。`gh auth status` を案内する。認証を代行しない。
+  GitHub MCP のツールが使えるならそちらの経路で続けられる
+  （[github-mcp.md](github-mcp.md) の判定順）
+- **`gh` が無い（Cowork など）** … `gh auth status` の案内は解決策にならない。
+  GitHub MCP サーバーのセットアップを案内する（プラグイン README の前提）。
+  MCP も無ければ止まる
 - **issue が存在しない・権限が無い** … 手順 1 で止まる。番号の推測で続けない
 
 ## マージまわり

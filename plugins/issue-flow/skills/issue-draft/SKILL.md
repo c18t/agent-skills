@@ -13,6 +13,11 @@ description: "やりたいことを受け取って GitHub issue の本文を起�
 
 ユーザーの承認を取るのは 1 箇所（手順 6 の本文レビュー）。それ以外は続けて進めてよい。
 
+GitHub の読み書きは `gh` CLI か GitHub MCP のどちらかで行う。着手前に
+[../issue-work/reference/github-mcp.md](../issue-work/reference/github-mcp.md) の判定順で
+経路を 1 回だけ決める（`gh auth status` が通れば gh、通らなければ MCP、どちらも無ければ止まる）。
+以降の手順は gh のコマンドで書く。MCP 経路では同ファイルの対応表で読み替える。
+
 このスキルは issue を**作る**側。作った issue に着手するのは `issue-work` スキルの担当で、
 このスキルからは呼び出さない（手順 8）。
 
@@ -22,13 +27,18 @@ description: "やりたいことを受け取って GitHub issue の本文を起�
 
 ### 1. リポジトリと既存 issue を確認する
 
+取得するもの: リポジトリの概要と、全 state の既存 issue 一覧。
+
 ```bash
 gh repo view --json nameWithOwner,description
 gh issue list --limit 30 --state all
 ```
 
+MCP 経路は `search_repositories`（query に `repo:<owner>/<repo>`）と `list_issues`。
+
 同じ話題の issue が既にあれば、新しく作るか既存に足すかをユーザーに聞く。
-`gh` が未認証ならここで止まり、`gh auth status` を案内する。
+`gh` が未認証で MCP も使えなければここで止まる
+（[../issue-work/reference/github-mcp.md](../issue-work/reference/github-mcp.md) の判定順）。
 
 ### 2. issue テンプレートを決める
 
@@ -46,9 +56,13 @@ ls .github/ISSUE_TEMPLATE/ 2>/dev/null
 
 ### 3. ラベルを決める
 
+やること: リポジトリに実在するラベルの確認。
+
 ```bash
 gh label list
 ```
+
+MCP 経路に一覧ツールは無いので、`get_label` で候補名（下の目安）を 1 つずつ実在確認する。
 
 **実在するラベルだけを選ぶ。** 目安は次のとおり。
 
@@ -98,6 +112,9 @@ notion-writeback: resolve python3 launcher on Windows
 gh issue create --title "<タイトル>" --body-file <本文ファイル> --label <ラベル>
 ```
 
+MCP 経路は `issue_write`（method: `create`）。本文はファイルでなく `body` 引数に
+文字列でそのまま渡す（`--body-file` はシェル事故を避ける gh 経路の手当て）。
+
 ラベルを複数付けるときは `--label a --label b` と繰り返す。
 失敗したらそのまま再実行せず、エラーメッセージから原因を特定する。
 
@@ -110,11 +127,13 @@ gh issue create --title "<タイトル>" --body-file <本文ファイル> --labe
 ```
 
 **`issue-work` を自分で呼び出さない。** 続けて着手するかはユーザーが決める。
-手順 5 で相互参照を保留していた場合は、ここで `gh issue edit <番号> --body-file <ファイル>` で追記する。
+手順 5 で相互参照を保留していた場合は、ここで `gh issue edit <番号> --body-file <ファイル>`
+（MCP 経路は `issue_write` の method: `update`）で追記する。
 
 ## 例外時の参照先
 
 | ファイル | 内容 |
 | --- | --- |
 | [reference/troubleshooting.md](reference/troubleshooting.md) | 落ちる原因（既知）と対処 |
+| [../issue-work/reference/github-mcp.md](../issue-work/reference/github-mcp.md) | 経路の判定と、gh ↔ GitHub MCP の対応表 |
 | [templates/issue.md](templates/issue.md) | リポジトリにテンプレートが無いときの既定 |
