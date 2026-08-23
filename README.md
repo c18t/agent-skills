@@ -14,6 +14,7 @@ Personal agent skills and Claude Code plugin marketplace.
 | Name | Summary |
 | --- | --- |
 | [notion-writeback](plugins/notion-writeback/README.md) | Hooks and a skill for using the Notion MCP reliably. Injects page bodies straight from files via the `@@FILE:` sentinel and blocks repeated `update_content` calls |
+| [issue-worktree](plugins/issue-worktree/README.md) | Turns a GitHub issue number into a dedicated worktree, moves the session into it with `EnterWorktree`, and works the issue through to a PR, a squash merge, and cleanup |
 
 ## Development
 
