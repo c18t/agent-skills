@@ -24,6 +24,11 @@ issue / PR の番号は作成後に GitHub が採番する。書いた時点で�
 
 手順 1 の `gh repo view` で落ちる。`gh auth status` の実行を案内して**止まる。認証を代行しない。**
 
+GitHub MCP のツールが使えるならそちらの経路で続けられる
+（[../../issue-work/reference/github-mcp.md](../../issue-work/reference/github-mcp.md) の判定順）。
+`gh` 自体が無い環境（Cowork など）では `gh auth status` の案内は解決策にならないので、
+GitHub MCP サーバーのセットアップを案内する（プラグイン README の前提）。MCP も無ければ止まる。
+
 ## 既存 issue と重複させる
 
 手順 1 の `gh issue list` を飛ばすと起きる。同じ話題が既にあれば、新規作成ではなく
