@@ -182,7 +182,8 @@ git push
 gh pr create --base <デフォルトブランチ> --title "release: <プラグイン名> <version>" --body-file <本文ファイル>
 ```
 
-PR 作成の MCP 経路は `create_pull_request`（push は 🔴 `git push` のみ。冒頭の注意）。
+PR 作成の MCP 経路は `create_pull_request`（本文はファイルに保存して `body` に
+`@@FILE:<相対パス>@@`）。push は 🔴 `git push` のみ（冒頭の注意）。
 
 CI は同梱スクリプトを `Monitor` ツールの `command` に渡して待つ。
 
@@ -221,6 +222,7 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
   ```
 
   MCP 経路は `merge_pull_request`（`merge_method: merge`、`commit_title` に同じタイトル）。
+  本文を付けるなら `commit_message` に `@@FILE:<相対パス>@@`。
 
   🔴 **`--squash` を使わない**（含まれる PR が 1 本も自動クローズしなくなる）。
   🔴 **`--delete-branch` を付けない**（ローカル側が worktree に checkout されたまま。削除は 12-c）。
@@ -248,6 +250,8 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
   ```
 
   MCP 経路は `add_issue_comment` → `issue_write`（method: `update`、`state: closed`）。
+  どちらも `body` はセンチネル対象なので、長い本文はファイルに保存して
+  `@@FILE:<相対パス>@@` で渡す。
 
   **どのコミットで対応したかをコメントに残す。** PR が OPEN のまま残っていたら、
   head が main に到達しているかを確認する。

@@ -112,8 +112,10 @@ notion-writeback: resolve python3 launcher on Windows
 gh issue create --title "<タイトル>" --body-file <本文ファイル> --label <ラベル>
 ```
 
-MCP 経路は `issue_write`（method: `create`）。本文はファイルでなく `body` 引数に
-文字列でそのまま渡す（`--body-file` はシェル事故を避ける gh 経路の手当て）。
+MCP 経路は `issue_write`（method: `create`）。**本文は gh 経路と同じくファイルに保存し、
+`body` には `@@FILE:<本文ファイルの相対パス>@@` だけを渡す**（フックがファイル実体を
+注入するので、承認済みの本文がモデルの転記を経由しない。
+[../issue-work/reference/github-mcp.md](../issue-work/reference/github-mcp.md)）。
 
 ラベルを複数付けるときは `--label a --label b` と繰り返す。
 失敗したらそのまま再実行せず、エラーメッセージから原因を特定する。
@@ -128,7 +130,7 @@ MCP 経路は `issue_write`（method: `create`）。本文はファイルでな�
 
 **`issue-work` を自分で呼び出さない。** 続けて着手するかはユーザーが決める。
 手順 5 で相互参照を保留していた場合は、ここで `gh issue edit <番号> --body-file <ファイル>`
-（MCP 経路は `issue_write` の method: `update`）で追記する。
+（MCP 経路は `issue_write` の method: `update`。`body` はセンチネルで渡す）で追記する。
 
 ## 例外時の参照先
 

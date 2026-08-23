@@ -76,11 +76,36 @@ the release branch marks them Merged the moment they land there — while the de
 nothing — and `Merged` cannot be reopened. With `deleteBranchOnMerge` on, their branches are then
 deleted too, leaving the release branch as the only copy of those commits.
 
+### PreToolUse hook — `scripts/github_write_guard.py`
+
+On the MCP path, bodies and file contents are *transcribed by the model* into tool arguments,
+which loses the one property `--body-file` had on the `gh` path: the bytes never pass through the
+model's output. In PR #28 that cost three of ten pushed files a silent rewording — 「続けて**進めて**よい」
+became 「続けて**進んで**よい」 — the kind of plausible "correction" a review reads straight past.
+
+So write `@@FILE:<path relative to the base directory>@@` as the whole argument, and the hook
+substitutes the file's contents before the call leaves the machine. It covers `push_files`
+(`files[].content`, per element), `create_or_update_file` (`content`), `issue_write` /
+`create_pull_request` / `add_issue_comment` (`body`), and `merge_pull_request` (`commit_message`).
+The base directory is `CLAUDE_PROJECT_DIR`, then the hook payload's `cwd`, then the current
+directory — the repository root under Claude Code, the session's `cwd` under Cowork.
+
+If the file is missing, unreadable, or outside the base directory, the hook **denies the call**
+rather than injecting nothing: a literal `@@FILE:...@@` reaching a commit is the worst outcome.
+Writing no sentinel keeps the old behavior, so this is backward compatible. The hook is scoped to
+GitHub MCP tools specifically — `issue_write` and `create_pull_request` are not GitHub-only names,
+and a fail-closed hook must not interrupt some other server's calls.
+
+Regardless of the hook, verify after `push_files`: `git fetch origin` then
+`git diff HEAD origin/<branch>` must be empty. That check is what caught #28, and it still works
+where the hook does not run.
+
 ## Prerequisites
 
 - A way to read and write GitHub — either `gh` on `PATH` and authenticated (`gh auth status`), or a GitHub MCP server whose tools are visible to the session. The skills check in that order, once per run, and stop if neither is available — none of them authenticates for you. Every `gh` operation has its MCP counterpart in [skills/issue-work/reference/github-mcp.md](skills/issue-work/reference/github-mcp.md)
 - A git repository with a remote (`issue-work`, `release-merge`)
 - `EnterWorktree` needs your approval on first entry, because the worktree lives outside `.claude/worktrees/` (`issue-work`, `release-merge`)
+- Python 3 on `PATH` — any of `python3`, `python`, or `py` (the hook goes through `scripts/python.sh`, which picks the first one that exists). Only the MCP path needs it; the `gh` path never invokes the hook. If none is found the hook exits 2 and blocks the write rather than letting an unexpanded `@@FILE:...@@` reach GitHub
 
 ### Cowork
 
