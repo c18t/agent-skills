@@ -23,7 +23,7 @@ Merging has a blind spot of its own. GitHub judges each PR against the default b
 Given a free-form topic:
 
 1. `gh repo view` and `gh issue list` — checks for an existing issue on the same topic before adding another
-2. Looks for `.github/ISSUE_TEMPLATE/` and prefers the repository's own headings; falls back to 背景 / やること / 影響範囲 / 補足
+2. Looks for `.github/ISSUE_TEMPLATE/` and prefers the repository's own headings; otherwise uses the bundled default [skills/issue-draft/templates/issue.md](skills/issue-draft/templates/issue.md) (背景 / やること / 影響範囲 / 補足) and says which one it used
 3. `gh label list` — picks from labels that actually exist, because `--label` on a missing one fails the whole create
 4. Titles it in English as `<target>: <english>`, bodies it in Japanese, and records the reasoning behind each item
 5. **Writes the full title, labels, and body into the chat for review — it does not call `gh issue create`**
@@ -44,7 +44,7 @@ Given an issue number:
 6. Implements the fix inside the worktree
 7. Runs the project's linters and type checks (`.mise.toml` / `package.json` / `.pre-commit-config.yaml` / `markdownlint-cli2`)
 8. Commits using Conventional Commits (freely, in as many commits as the work needs)
-9. **Writes the PR body into the chat for review — it does not call `gh pr create`**
+9. **Writes the PR body into the chat for review — it does not call `gh pr create`** — filled from `.github/pull_request_template.md`, or from the bundled default [skills/issue-work/templates/pull_request.md](skills/issue-work/templates/pull_request.md) when the repository has none
 10. Pushes and opens the PR once you approve
 11. Waits for CI via `scripts/watch-pr.sh` under the Monitor tool, then asks for merge approval
     with the squash commit message it intends to use
@@ -64,9 +64,9 @@ Given the numbers of PRs that cannot land one at a time:
 1. `gh pr view` on each — and `git merge-tree` between them, because `mergeable` answers "this PR vs the default branch", never "this PR vs that PR". If no pair conflicts, it says so and stops rather than manufacturing a release branch
 2. Derives `release/<plugin>-<version>` — the plugin name is mandatory in a monorepo where each plugin versions independently, and the version's dots are kept so the branch matches the tag
 3. `git worktree add` from `origin/<default>`, registers it in `*.code-workspace`, and **`EnterWorktree`** — conflict resolution belongs in its own tree, not in the main checkout it would otherwise hold hostage
-4. Merges each PR in with `git merge --no-ff`, recording what was resolved and why for the PR body
-5. Runs the project's checks against the *integrated* tree, then checks the versions and READMEs for the inconsistencies a clean merge still leaves behind
-6. **Writes the release PR body into the chat for review** — filled from `.github/PULL_REQUEST_TEMPLATE/release.md`, which it reads and fills itself, since `gh pr create --template` only seeds the interactive editor
+4. Merges each PR in with `git merge --no-ff`, recording what was resolved and why for the PR body. When a PR renames a directory it goes first, and `git status` is checked after each merge for new files that landed under the old path — git cannot track a rename for files absent from the merge base, so they are not reported as conflicts
+5. Runs the project's checks against the *integrated* tree, then checks the versions, READMEs, directory layout, and leftover old names for the inconsistencies a clean merge still leaves behind
+6. **Writes the release PR body into the chat for review** — filled from `.github/PULL_REQUEST_TEMPLATE/release.md`, or from the bundled default [skills/release-merge/templates/release.md](skills/release-merge/templates/release.md) when the repository has none. It reads and fills the template itself, since `gh pr create --template` only seeds the interactive editor
 7. Opens the PR once you approve, waits for CI via the same `scripts/watch-pr.sh`, and asks before merging
 8. `gh pr merge --merge` — never `--squash`, which would rewrite the head SHAs and leave every included PR to be closed by hand
 9. Verifies the auto-closes landed, closes by hand whatever did not, and cleans up
@@ -96,6 +96,8 @@ See [skills/issue-draft/SKILL.md](skills/issue-draft/SKILL.md),
 
 ## Notes
 
+- Each `SKILL.md` is the happy path only. Failure modes, recovery steps, and the reasoning behind each prohibition live in the skill's `reference/` directory and are linked from the step they apply to
+- Templates are resolved project-first: the repository's own `.github/` template wins, and the bundled default under the skill's `templates/` is used only when there is none. The skill states which one it used when it presents the body
 - The three skills are deliberately separate invocations. `issue-draft` stops at the URL rather than starting the work, because filing an issue and picking it up are different decisions. `release-merge` starts from PR numbers, not an issue, so it carries its own worktree steps rather than calling `issue-work`
 - Creating an issue is gated on an explicit go-ahead, since the only undo is closing it
 - Merging is gated on an explicit go-ahead every time. CI passing is not treated as approval, and neither is the review of the PR body (step 9 in `issue-work`, step 9 in `release-merge`)
