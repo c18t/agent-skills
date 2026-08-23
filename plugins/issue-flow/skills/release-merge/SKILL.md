@@ -52,10 +52,10 @@ git merge-tree --write-tree origin/<A> origin/<B>   # 衝突すると exit 1
 **ユーザーに version を聞かない。** 統合対象が同じ minor を主張していたら、それ以上上げない
 （リリースが 1 回なら version は 1 つ）。
 
-- ブランチ名 … **`release/<プラグイン名>-<version>`**（例 `release/issue-flow-0.3.0`）。
+- ブランチ名 … **`release/<プラグイン名>-<version>`**（例 `release/my-plugin-1.2.0`）。
   プラグイン名は必須（モノレポで version が独立しているため）。ドットはそのまま。issue 番号は付けない
 - worktree パス … `../<リポジトリ名>-<ブランチ名のスラッシュをハイフンに置換>`
-  （例 `../agent-skills-release-issue-flow-0.3.0`）
+  （例 `../my-repo-release-my-plugin-1.2.0`）
 - 複数プラグインを同時にリリースするなら、プラグインごとに release ブランチを分ける
 
 ```bash
@@ -123,14 +123,8 @@ version の衝突は、片方に寄せるのではなく**手順 2 で決めた�
 ### 7. 統合状態で CI を回す
 
 **各 PR が個別に緑でも、統合状態は別物。** 実行コマンドはプロジェクトから判断する
-（`issue-work` 手順 7 と同じ表の見方）。このリポジトリでは次の 4 つ。
-
-```bash
-npx --yes markdownlint-cli2 "**/*.md"
-claude plugin validate .
-claude plugin validate ./plugins/<プラグイン名>
-python3 .github/scripts/check_manifests.py
-```
+（`issue-work` 手順 7 と同じ表の見方）。lint・型チェック・マニフェスト検証・テストなど、
+CI が回すものと同じ一式をローカルで回す。
 
 出力は控えておく（手順 9 の「補足」欄）。失敗したら直してコミットし直す。
 
@@ -140,9 +134,9 @@ python3 .github/scripts/check_manifests.py
 統合後の説明がどちらの実態とも合わないことがある。lint では拾えないので目で見る。
 
 - `plugin.json` の `version` が手順 2 で決めた値になっているか
-- `plugin.json` と `marketplace.json` の `description` が一致し、統合後の実態と合っているか
+- パッケージ定義（`plugin.json` など）とカタログ側の `description` が一致し、統合後の実態と合っているか
 - README が機能を数え違えていないか。「N スキル」のように数を書く表現は数えない形に改める
-- 統合後のディレクトリ（`ls plugins/` など対象の親）を目で見て、孤立した旧ディレクトリが無いか
+- 統合後の対象ディレクトリの親を `ls` で目で見て、孤立した旧ディレクトリが無いか
 - リネームを含む統合では、旧名の残留を grep する。**置換先は意味に応じて変わる**
   （スキル参照なら新名へ、ブランチ名や PR タイトルの例示なら個別に判断）。
   `sed` で一括置換しない（[reference/rename-merge.md](reference/rename-merge.md)）
@@ -274,5 +268,5 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
 | [reference/troubleshooting.md](reference/troubleshooting.md) | 落ちる原因（既知）、統合をやめるとき、base 張り替えの実害 |
 | [reference/conflict-detection.md](reference/conflict-detection.md) | `git merge-tree` の版ごとの書式と判定、`mergeable` が使えない理由 |
 | [reference/rename-merge.md](reference/rename-merge.md) | リネームを含む PR の統合で新規ファイルが旧ディレクトリに着地する罠、旧名残留の grep |
-| [reference/auto-close.md](reference/auto-close.md) | PR と issue の自動クローズ条件、#11 / #12 で挙動が割れた実例 |
+| [reference/auto-close.md](reference/auto-close.md) | PR と issue の自動クローズ条件と、挙動が割れた実例 |
 | [templates/release.md](templates/release.md) | リポジトリにリリース PR テンプレートが無いときの既定 |

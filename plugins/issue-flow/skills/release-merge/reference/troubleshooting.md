@@ -55,7 +55,7 @@ base の張り替えを選んでよいのは、`deleteBranchOnMerge` が無効�
 - **モノレポで `release/<version>` と名付ける** … プラグインごとに version が独立しているため
   識別子にならず、別プラグインが同じ version に達した時点で衝突する。必ずプラグイン名を入れる
 - **version のドットをハイフンに潰す** … `0-2-0` となって読みにくく、git tag とも揃わない。
-  git はドットを許容する（`refs/heads/release/issue-flow-0.3.0` は有効）
+  git はドットを許容する（`refs/heads/release/my-plugin-1.2.0` は有効）
 - **統合対象が同じ version を主張しているのに、さらに version を上げる** …
   リリースが 1 回なら version は 1 つ（手順 2）。ユーザーに version を聞くと「さらに上げる」を
   誘発するので聞かない
