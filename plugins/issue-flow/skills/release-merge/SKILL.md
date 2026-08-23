@@ -13,7 +13,7 @@ PR 同士が衝突するかを事前に確かめ、`release/<プラグイン名>
 自動クローズを確認して worktree を片付ける。
 
 ユーザーの承認を取るのは 3 箇所（手順 2 の統合方針、手順 9 の PR 本文、手順 11 のマージ）。
-それ以外は続けて進んでよい。
+それ以外は続けて進めてよい。
 
 GitHub の読み書きは `gh` CLI か GitHub MCP のどちらかで行う。着手前に
 [../issue-work/reference/github-mcp.md](../issue-work/reference/github-mcp.md) の判定順で
