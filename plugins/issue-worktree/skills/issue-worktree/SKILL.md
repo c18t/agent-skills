@@ -164,9 +164,11 @@ gh pr view <PR番号> --json mergeable,mergeStateStatus
 ブロックする**ので使わない。Monitor なら結果が届くまで他の作業を続けられる。
 
 ```bash
+seen=""
 while true; do
-  gh pr checks <PR番号> --json name,bucket \
-    --jq '.[] | select(.bucket != "pending") | "\(.name): \(.bucket)"' || true
+  cur=$(gh pr checks <PR番号> --json name,bucket --jq '.[] | select(.bucket != "pending") | "\(.name): \(.bucket)"' | sort)
+  printf '%s\n' "$cur" | grep -vxF "$seen" | grep .
+  seen="$cur"
   gh pr checks <PR番号> --json bucket --jq 'all(.[]; .bucket != "pending")' | grep -q true && break
   sleep 30
 done
@@ -174,6 +176,9 @@ done
 
 `bucket` は `pass` / `fail` / `pending` / `skipping` / `cancel` を取るので、**成功だけを
 拾う書き方にしない**（落ちたことに気づけなくなる）。上の形は完了したものを全部出す。
+
+`seen` との差分だけを出しているのは、**毎ポーリングで完了済みを再送すると通知が重複する**ため。
+`grep .` は差分が無いときに空行を出さないためのもの。
 
 ⚠️ jq の `all` は `all(.[]; <条件>)` の形で書く。`all(<条件>)` だと配列自身に条件が
 適用されて常に真になり、**CI を待たずに素通りする。**
@@ -201,8 +206,8 @@ CI が通っただけでは進めない。ユーザーが GitHub の UI で自�
   （このスキルの worktree は `.claude/worktrees/` の外にあり `ExitWorktree` の管理外なので、
   実際に消すのは 12-c）。
 
-  🔴 **マージより先に出る。** worktree の中から `gh pr merge --delete-branch` を実行すると、
-  GitHub 側のマージは成功するのに `gh` のローカル後処理が
+  🔴 **マージより先に出る。** worktree の中から `gh pr merge` を実行すると、GitHub 側の
+  マージは成功するのに `gh` のローカル後処理が
   `fatal: '<デフォルトブランチ>' is already checked out at '<メインのパス>'` で失敗する。
   **コマンドは非ゼロ終了するがマージは完了している**ため、失敗と読んで再実行すると
   マージ済みの PR を操作することになる
@@ -210,33 +215,43 @@ CI が通っただけでは進めない。ユーザーが GitHub の UI で自�
 - **12-b** マージする
 
   ```bash
-  gh pr merge --squash --delete-branch \
+  gh pr merge <PR番号> --squash \
     --subject "<承認されたタイトル>" \
     --body-file <本文ファイル>
   ```
 
   `--subject` と `--body-file` を渡すのは、**省略すると GitHub が各コミットのメッセージを
   連結した本文を既定にしてしまい、あとから UI で直す必要が出るため。**
-  `--delete-branch` でリモートブランチも消える。
 
-  それでも失敗したときは、**再実行の前に `gh pr view <PR番号> --json state,mergedAt` で
+  🔴 **`--delete-branch` を付けない。** このフラグはリモートとローカルの両方を消そうとするが、
+  ローカル側はこの時点で worktree が checkout したままなので必ず失敗する
+  （`Cannot delete branch '<ブランチ名>' checked out at '<worktree のパス>'`）。
+  ブランチの削除は 12-c でまとめて行う。
+
+  失敗したときは、**再実行の前に `gh pr view <PR番号> --json state,mergedAt` で
   マージ済みかどうかを確かめる**（`state: MERGED` なら完了している）
 
 - **12-c** worktree とローカルブランチを片付ける
 
   ```bash
   git worktree remove <パス>
-  git fetch --prune
   git branch -D <ブランチ名>
+  git push origin --delete <ブランチ名>
+  git fetch --prune
   ```
+
+  **順序が要る。** `git worktree remove` を先に済ませないと、ブランチは checkout 中の扱いで
+  消せない。
 
   `git worktree remove` が未コミットの変更を理由に拒んだら、**`--force` を付けずに止まる。**
   何が残っているかをユーザーに伝えて判断を仰ぐ。
 
   ローカルブランチの削除に `-D` を使うのは、**squash merge が元のコミットとは別の新しい
   コミットを作るため、`-d` が「マージされていない」と判断して拒むから。**
-  12-b のマージ成功を確認したうえで実行する。`--delete-branch` で既に消えていれば
-  `git branch` は失敗するが、それは正常なので無視してよい
+  12-b のマージ成功を確認したうえで実行する。
+
+  リポジトリが「マージ後にブランチを自動削除」する設定なら `git push origin --delete` は
+  「remote ref does not exist」で失敗する。**それは正常なので無視してよい。**
 
 - **12-d** `*.code-workspace` から worktree の記載を消す
 
