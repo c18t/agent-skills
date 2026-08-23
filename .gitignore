@@ -274,5 +274,5 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/vim,visualstudiocode,windows,macos,python
 
-# VSCode workspace files (worktree entries are environment-specific; issue-worktree generates them)
+# VSCode workspace files (worktree entries are environment-specific; issue-work generates them)
 *.code-workspace
