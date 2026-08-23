@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/notion_write_guard.py\"",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" \"${CLAUDE_PLUGIN_ROOT}/scripts/notion_write_guard.py\"",
             "timeout": 10,
             "statusMessage": "notion-guard: 書き込みを検査中"
           }

@@ -15,13 +15,14 @@ This plugin creates a path where the page body never passes through the model's 
 - **Helper script** `scripts/notion_mirror.py`
   - `pull` — builds a local source file from the verbatim `notion-fetch` result stored in the session transcript
   - `diff` — compares the local source with the fetch result after normalization (`CLEAN` / `DIRTY` / `STALE`)
+- **Wrapper** `scripts/python.sh` — runs the Python scripts with whichever of `python3` / `python` / `py -3` exists, so the hook works on Linux, WSL, and Windows (Git Bash) alike. Exits 2 when none is found
 - **Agent** `notion-writeback:notion-fetcher` — a lightweight (haiku) subagent that only fetches and runs the script. It makes no judgment
 - **Skill** `/notion-writeback:notion-writeback` — the procedure: fetch → pull → edit → diff → `replace_content` (sentinel) → fetch again → `CLEAN`
 
 ## Prerequisites
 
 - A connected Notion MCP server (not bundled; add `{"type":"http","url":"https://mcp.notion.com/mcp"}` to your `.mcp.json`)
-- `python3` on `PATH`
+- Python 3 on `PATH` — any of `python3`, `python`, or `py` (the hook and the docs go through `scripts/python.sh`, which picks the first one that exists). If none is found the hook exits 2 and blocks the write rather than letting an unexpanded `@@FILE:...@@` reach the page
 - The hook runs in any session that loads the plugin (Claude Code, and Cowork when installed via Customize → Plugins). Hooks written in a project's `.claude/settings.json` are not read by Cowork. If `@@FILE:...@@` is still in the page after a read-back, the hook did not run
 
 ## Usage
