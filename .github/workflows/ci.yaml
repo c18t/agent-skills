@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate-manifests:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate marketplace manifest
+        run: claude plugin validate .
+      - name: Validate plugin manifests
+        run: |
+          for dir in plugins/*/; do
+            echo "==> $dir"
+            claude plugin validate "$dir"
+          done
+      # Claude Desktop は名前が規約外の entry をエラーにせず落とすため、
+      # validate で拾えない壊れ方（名前規約・重複・source・version 整合）を別途見る
+      - name: Check manifest consistency
+        run: python3 .github/scripts/check_manifests.py
+
+  hook-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        # windows-latest 必須: python3 ランチャの解決も cp932 もパス表記の揺れも
+        # Windows でしか再現しない（#2 / #3）
+        os: [ubuntu-slim, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run hook regression tests
+        run: python -m unittest discover -s plugins/notion-writeback/tests -v
+
+  markdownlint:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run markdownlint-cli2
+        run: npx --yes markdownlint-cli2 "**/*.md"
