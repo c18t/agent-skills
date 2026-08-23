@@ -7,7 +7,7 @@ on:
 
 jobs:
   validate-manifests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,7 +34,7 @@ jobs:
       matrix:
         # windows-latest 必須: python3 ランチャの解決も cp932 もパス表記の揺れも
         # Windows でしか再現しない（#2 / #3）
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-slim, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
         run: python -m unittest discover -s plugins/notion-writeback/tests -v
 
   markdownlint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
