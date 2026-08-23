@@ -41,8 +41,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # プラグインごとに discover する。パスを 1 つ決め打ちにすると、
+      # 新しいプラグインのテストが**一度も実行されないまま緑になる**
       - name: Run hook regression tests
-        run: python -m unittest discover -s plugins/notion-writeback/tests -v
+        shell: bash
+        run: |
+          status=0
+          found=0
+          for dir in plugins/*/tests/; do
+            [ -d "$dir" ] || continue
+            found=1
+            echo "==> $dir"
+            python -m unittest discover -s "$dir" -v || status=1
+          done
+          [ "$found" = 1 ] || { echo "no plugins/*/tests found"; exit 1; }
+          exit $status
 
   markdownlint:
     runs-on: ubuntu-slim

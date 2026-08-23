@@ -165,7 +165,11 @@ gh pr create --title "<タイトル>" --body-file <本文ファイル>
 ```
 
 MCP 経路は `create_branch` → `push_files` → `create_pull_request`（`git push` の認証が
-無い環境向け。1 コミットに畳まれる注意は [reference/github-mcp.md](reference/github-mcp.md)）。
+無い環境向け）。**`push_files` の各 `files[].content` と `create_pull_request` の `body` は
+`@@FILE:<相対パス>@@` で渡す**（フックがファイル実体を注入する）。
+❗ **push したら `git fetch origin` + `git diff HEAD origin/<ブランチ名>` が空であることを
+必ず確認する。** 1 コミットに畳まれる注意と照合手順は
+[reference/github-mcp.md](reference/github-mcp.md)。
 
 PR 本文は手順 9 で承認されたものをそのまま使う。作成後、PR の URL を伝える。
 
@@ -219,8 +223,9 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
     --body-file <本文ファイル>
   ```
 
-  MCP 経路は `merge_pull_request`（`merge_method: squash`、承認されたタイトルを `commit_title`、
-  本文を `commit_message` に渡す）。
+  MCP 経路は `merge_pull_request`（`merge_method: squash`）。承認されたタイトルは
+  `commit_title` に文字列で、**本文はファイルに保存して `commit_message` に
+  `@@FILE:<相対パス>@@`** を渡す。
 
   `--subject` と `--body-file`（MCP なら `commit_title` / `commit_message`）は必ず渡す
   （省くと GitHub が各コミットのメッセージを連結した本文を既定にする）。
