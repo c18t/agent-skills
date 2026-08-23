@@ -78,9 +78,22 @@ deleted too, leaving the release branch as the only copy of those commits.
 
 ## Prerequisites
 
-- `gh` on `PATH` and authenticated (`gh auth status`) — none of the skills authenticates for you
+- A way to read and write GitHub — either `gh` on `PATH` and authenticated (`gh auth status`), or a GitHub MCP server whose tools are visible to the session. The skills check in that order, once per run, and stop if neither is available — none of them authenticates for you. Every `gh` operation has its MCP counterpart in [skills/issue-work/reference/github-mcp.md](skills/issue-work/reference/github-mcp.md)
 - A git repository with a remote (`issue-work`, `release-merge`)
 - `EnterWorktree` needs your approval on first entry, because the worktree lives outside `.claude/worktrees/` (`issue-work`, `release-merge`)
+
+### Cowork
+
+Cowork tasks run in a cloud VM that has no `gh` and no `gh` credentials, so the MCP path is the
+only one available: set up a GitHub MCP server on the desktop side so its tools are proxied into
+the session. Two more Cowork-specific notes:
+
+- `release-merge` additionally needs working `git push` credentials for its release branch. The
+  MCP `push_files` cannot substitute there — an API push creates new commits, the merged PR head
+  SHAs never reach the remote, and none of the included PRs auto-close. Without push credentials
+  the skill stops before pushing
+- The `*.code-workspace` registration steps exist for VSCode and are skipped in Cowork; the
+  worktree steps themselves (`git worktree add` + `EnterWorktree`) work as-is
 
 ## Usage
 
@@ -97,6 +110,7 @@ See [skills/issue-draft/SKILL.md](skills/issue-draft/SKILL.md),
 ## Notes
 
 - Each `SKILL.md` is the happy path only. Failure modes, recovery steps, and the reasoning behind each prohibition live in the skill's `reference/` directory and are linked from the step they apply to
+- The step-by-step procedures are written with `gh` commands, which stay the shorter path where `gh` works; the shared mapping table ([skills/issue-work/reference/github-mcp.md](skills/issue-work/reference/github-mcp.md)) translates each operation to GitHub MCP tools. The approval gates (🛑) sit in the same places on both paths — MCP tools may execute without a harness-side confirmation, so the skill-side gate is what stands in for it
 - Templates are resolved project-first: the repository's own `.github/` template wins, and the bundled default under the skill's `templates/` is used only when there is none. The skill states which one it used when it presents the body
 - The three skills are deliberately separate invocations. `issue-draft` stops at the URL rather than starting the work, because filing an issue and picking it up are different decisions. `release-merge` starts from PR numbers, not an issue, so it carries its own worktree steps rather than calling `issue-work`
 - Creating an issue is gated on an explicit go-ahead, since the only undo is closing it
