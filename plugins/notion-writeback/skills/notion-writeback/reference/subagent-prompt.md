@@ -16,7 +16,7 @@
 - <ページ ID or URL 2> … ローカル正本 <path/to/page2.md>
 
 コマンド（ページごと、作業ディレクトリは <プロジェクトルート>）:
-python3 "<CLAUDE_PLUGIN_ROOT>/scripts/notion_mirror.py" diff --page <ID> --file <ローカル正本> > <出力ディレクトリ>/<ID>.diff.txt 2>&1
+sh "<CLAUDE_PLUGIN_ROOT>/scripts/python.sh" "<CLAUDE_PLUGIN_ROOT>/scripts/notion_mirror.py" diff --page <ID> --file <ローカル正本> > <出力ディレクトリ>/<ID>.diff.txt 2>&1
 ```
 
 ## pull（ローカル正本の作成）
@@ -28,7 +28,7 @@ python3 "<CLAUDE_PLUGIN_ROOT>/scripts/notion_mirror.py" diff --page <ID> --file 
 - <ページ ID or URL> … 書き出し先 <path/to/page.md>
 
 コマンド（作業ディレクトリは <プロジェクトルート>）:
-python3 "<CLAUDE_PLUGIN_ROOT>/scripts/notion_mirror.py" pull --page <ID> --out <書き出し先> > <出力ディレクトリ>/<ID>.pull.txt 2>&1
+sh "<CLAUDE_PLUGIN_ROOT>/scripts/python.sh" "<CLAUDE_PLUGIN_ROOT>/scripts/notion_mirror.py" pull --page <ID> --out <書き出し先> > <出力ディレクトリ>/<ID>.pull.txt 2>&1
 ```
 
 ⚠️ `pull` は既存のローカル正本を**上書きする**。未書き戻しの編集があるページには投げない。

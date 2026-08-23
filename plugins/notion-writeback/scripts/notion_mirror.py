@@ -11,8 +11,8 @@ Notion MCP のコネクタは OAuth なのでローカルに API トークンが
 
 使い方
 ------
-  python3 notion_mirror.py pull --page <ID or URL> --out <file>   # fetch 結果をファイルへ
-  python3 notion_mirror.py diff --page <ID or URL> --file <file>  # ローカル正本と fetch 結果を照合
+  sh python.sh notion_mirror.py pull --page <ID or URL> --out <file>   # fetch 結果をファイルへ
+  sh python.sh notion_mirror.py diff --page <ID or URL> --file <file>  # ローカル正本と fetch 結果を照合
 
 どちらも **先に notion-fetch でそのページを取得しておく**（最新状態が要るなら取り直す）。
 同じページが複数回 fetch されていれば最後（＝最新）を採用する。

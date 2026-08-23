@@ -31,7 +31,9 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 | `notion_mirror.py diff` | ローカル正本と fetch 結果を正規化して照合する。`CLEAN` / `DIRTY` / `STALE` |
 | `notion-update-page` `replace_content` ＋ `@@FILE:<パス>@@` | PreToolUse フックがファイル実体を `new_str` に注入して全文を差し替える |
 
-スクリプトはプラグインの `scripts/` にある：`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py"`。
+スクリプトはプラグインの `scripts/` にある：`sh "${CLAUDE_PLUGIN_ROOT}/scripts/python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py"`。
+`python.sh` は `python3` / `python` / `py -3` のうち最初に見つかったもので実行するラッパー。
+**`python3` を直接叩かない**——Windows では `python3` が無いことが多く、環境ごとにコマンド名が違う。
 ページは ID でも URL でも指定できる。ローカル正本の置き場はプロジェクト内なら自由（例 `docs/notion/<ページ名>.md`）。
 `@@FILE:` のパスは**プロジェクトルートからの相対パス**。
 
@@ -49,7 +51,7 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 ### 1. ローカル正本を用意する
 
 - **1-a** `notion-fetch` でページを取る
-- **1-b** `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py" pull --page <ID or URL> --out <ローカル正本>`
+- **1-b** `sh "${CLAUDE_PLUGIN_ROOT}/scripts/python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py" pull --page <ID or URL> --out <ローカル正本>`
 - 🔴 **`pull` を回してよいのは、未書き戻しのローカル編集が無いときだけ。** 編集を積んだ状態で回すと**消える**。
   既にローカル正本があり編集済みなら 1 は飛ばして 2 へ
 
@@ -60,7 +62,7 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 ### 3. 照合する
 
 - **3-a** `notion-fetch` でページを**取り直す**（書き戻し直前の現物が要る）
-- **3-b** `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py" diff --page <ID or URL> --file <ローカル正本>`
+- **3-b** `sh "${CLAUDE_PLUGIN_ROOT}/scripts/python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py" diff --page <ID or URL> --file <ローカル正本>`
   - **編集したページは `DIRTY` が正常。** ラベルではなく差分の中身で判断する
   - 🔴 **「`DIRTY` だから書き戻せない」と読まない**——そう読むと書き戻せるページが 1 つも無くなり、手順ごと飛ばす動機になる
   - 見るのは **`delete` の文脈だけ**（＝Notion にあってローカルにない＝消える側）
