@@ -1,0 +1,18 @@
+{
+  "description": "GitHub MCP の書き込み系ツールを実行前に検査する。@@FILE: センチネルにファイル実体を注入する",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*github.*__(push_files|create_or_update_file|issue_write|create_pull_request|merge_pull_request|add_issue_comment)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" \"${CLAUDE_PLUGIN_ROOT}/scripts/github_write_guard.py\"",
+            "timeout": 10,
+            "statusMessage": "github-guard: 書き込みを検査中"
+          }
+        ]
+      }
+    ]
+  }
+}
