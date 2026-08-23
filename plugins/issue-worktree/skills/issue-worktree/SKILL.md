@@ -28,16 +28,44 @@ issue が存在しない・権限が無い等で失敗したら**そこで止ま
 
 ### 2. ブランチ名と worktree パスを決める
 
-- ブランチ名 … `feature/<番号>_<英語スラッグ>`
-  スラッグは issue タイトルから起こした小文字ケバブケース（例 `feature/123_add-login-form`）
+ブランチ名は [Conventional Branch](https://conventionalbranch.org/) に従う。
+
+- ブランチ名 … `<接頭辞>/<番号>-<英語スラッグ>`
+  スラッグは issue タイトルから起こした小文字ケバブケース（例 `feature/123-add-login-form`）
 - worktree パス … `../<リポジトリ名>-<ブランチ名のスラッシュをハイフンに置換>`
+
+接頭辞は **issue のラベルを起点に**選ぶ（`bug` が付いていれば `bugfix/`）。
+
+| 接頭辞 | 使うとき |
+| --- | --- |
+| `feature/` | 新機能、および不具合ではない機能改善 |
+| `bugfix/` | バグ修正 |
+| `hotfix/` | 緊急の修正 |
+| `release/` | リリース準備 |
+| `chore/` | 依存更新・ドキュメントなどコード以外の作業 |
+
+**仕様は `fix/` も `bugfix/` の別名として認めているが、`bugfix/` を採る。**
+`fix` は「直す」全般に読めてしまい、不具合ではない小さな改善を前にすると
+`feature/` との境界が毎回曖昧になる。`bugfix/` なら判断が「これはバグか」の一問で済む。
+
+命名の制約は 2 つ。
+
+- 使えるのは**小文字英数字とハイフンのみ**。アンダースコアは使えず、
+  ハイフンの連続・先頭・末尾も不可
+- issue 番号は `issue-123-` ではなく **`123-` と数字だけ**にする
+  （接頭辞・リポジトリ名に続く 3 つ目の修飾語が増えると、worktree のパスと
+  VSCode の表示が読みにくくなるため）
+
+⚠️ **ブランチ名の接頭辞と Conventional Commits の type は別物。**
+Conventional Commits 側に `bugfix` は無いので、`bugfix/` ブランチでも
+コミットは `fix:` で打つ（手順 8）。
 
 ```bash
 basename "$(git rev-parse --show-toplevel)"
 ```
 
-例：リポジトリ `agent-skills`／ブランチ `feature/123_add-login-form`
-→ `../agent-skills-feature-123_add-login-form`
+例：リポジトリ `agent-skills`／ブランチ `feature/123-add-login-form`
+→ `../agent-skills-feature-123-add-login-form`
 
 ### 3. worktree を作る
 
@@ -76,8 +104,8 @@ basename "$(git rev-parse --show-toplevel)"
   "folders": [
     { "name": "main", "path": "." },
     {
-      "name": "feature/123_add-login-form",
-      "path": "../agent-skills-feature-123_add-login-form"
+      "name": "feature/123-add-login-form",
+      "path": "../agent-skills-feature-123-add-login-form"
     }
   ]
 }
@@ -275,6 +303,38 @@ CI が通っただけでは進めない。ユーザーが GitHub の UI で自�
   ```bash
   git log --oneline -1 origin/<デフォルトブランチ>
   ```
+
+## ブランチ名を変えるとき
+
+規約を変えたときや接頭辞を選び違えたときは、**切り直さずに改名する。**
+追随させるものが 3 つある（ブランチ・worktree のディレクトリ名・`*.code-workspace` の記載）ので、
+順序どおりに進める。
+
+1. worktree の中でブランチを改名する
+
+   ```bash
+   git branch -m <新しいブランチ名>
+   ```
+
+2. `ExitWorktree` に `action: "keep"` を渡してメイン側へ戻る
+
+   **滞在中のディレクトリは動かせない**ため、次の `git worktree move` より先に出る。
+
+3. worktree のディレクトリを移す
+
+   ```bash
+   git worktree move <旧パス> <新パス>
+   ```
+
+   🔴 **`mv` を使わない。** git 内部のメタデータ
+   （`.git/worktrees/<名前>/gitdir` とリンク先）が古いパスを指したまま壊れる。
+
+4. `*.code-workspace` の該当要素の `name` と `path` を新しいものに直す
+
+   メイン側にいるこのタイミングで行う（手順 4・12-d と同じ理由）。
+   JSONC なので **Edit で該当行だけを直す。**
+
+5. `EnterWorktree` に**新しいパス**を渡して入り直す
 
 ## マージせずに中断するとき
 
