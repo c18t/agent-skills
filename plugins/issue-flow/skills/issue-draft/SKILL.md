@@ -13,7 +13,7 @@ description: "やりたいことを受け取って GitHub issue の本文を起�
 
 ユーザーの承認を取るのは 1 箇所（手順 6 の本文レビュー）。それ以外は続けて進めてよい。
 
-このスキルは issue を**作る**側。作った issue に着手するのは `issue-worktree` スキルの担当で、
+このスキルは issue を**作る**側。作った issue に着手するのは `issue-work` スキルの担当で、
 このスキルからは呼び出さない（手順 8）。
 
 ## 手順
@@ -69,7 +69,7 @@ gh label list
 コンポーネント名・ファイル名など、どこの話かが分かる語。
 
 ```text
-issue-worktree: follow Conventional Branch for branch naming
+issue-flow: follow Conventional Branch for branch naming
 notion-writeback: resolve python3 launcher on Windows
 ```
 
@@ -123,10 +123,10 @@ gh issue create --title "<タイトル>" --body-file <本文ファイル> --labe
 作成された issue の URL と番号を伝える。そのうえで、着手するためのコマンドを提示して終わる。
 
 ```text
-/issue-worktree:issue-worktree <番号>
+/issue-flow:issue-work <番号>
 ```
 
-**ここで issue-worktree を自分で呼び出さない。** 起票と着手は別の判断なので、
+**ここで issue-work を自分で呼び出さない。** 起票と着手は別の判断なので、
 続けて着手するかどうかはユーザーが決める。
 
 手順 5 で相互参照を保留していた場合は、ここで `gh issue edit <番号> --body-file <ファイル>` を

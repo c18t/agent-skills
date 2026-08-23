@@ -1,5 +1,5 @@
 ---
-name: issue-worktree
+name: issue-work
 description: "GitHub issue 番号を受け取り、専用の worktree を作ってセッションごと移動し、そこで issue を解決して PR を出し、承認を得てから squash merge して worktree を片付ける。issue に着手する・issue の対応を始める・issue 用のブランチを切る・worktree を作って作業する、と言われたときに使う。"
 ---
 

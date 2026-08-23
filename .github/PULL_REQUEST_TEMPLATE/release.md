@@ -23,6 +23,10 @@
 > 必ず **Create a merge commit** でマージすること（squash / rebase 不可）。
 >
 > 各 PR ブランチの head コミットが main に到達することで、含まれる PR が自動的に Merged 扱いになる。squash すると SHA が変わるため自動クローズされず、手動で閉じることになる。
+>
+> これは PR → release ブランチの取り込みにも同じ理由で当てはまる。`git merge --no-ff` で入れること。
+>
+> 含まれる PR の base は張り替えないこと。base を release ブランチへ向けると、release へマージした時点で PR が Merged になる（main には何も入っていないのに）。Merged は再オープンできず、`deleteBranchOnMerge` が有効なら feature ブランチも消えて release ブランチが単一障害点になる。さらに PR 本文の `resolves:` はデフォルトブランチへのマージが条件のため、以後発火しない。
 
 <!-- markdownlint-enable MD013 -->
 
