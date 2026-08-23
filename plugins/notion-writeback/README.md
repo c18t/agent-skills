@@ -1,33 +1,33 @@
 # notion-writeback
 
-Notion MCP（`notion-update-page`）で日本語ページを安定して更新するためのプラグイン。
+A plugin for updating Japanese (or any non-ASCII) Notion pages reliably through the Notion MCP (`notion-update-page`).
 
-## 何を解決するか
+## Problem
 
-Notion MCP でページ本文をツール引数に打ち直すと、呼び出しごとに小さな確率で日本語が別の字に化ける。
-化けの露出は**呼び出し回数**にほぼ比例し、「長い引数は危ないから分割する」は逆効果だった。
+When a page body is retyped into a tool argument, each call has a small chance of corrupting characters.
+Exposure scales with the **number of calls**, not the payload size — "split long arguments into small ones" makes it worse.
 
-このプラグインは本文がモデルの出力を一切経由しない経路を作る。
+This plugin creates a path where the page body never passes through the model's output.
 
-- **PreToolUse フック** `scripts/notion_write_guard.py`
-  - `replace_content` の `new_str` に `@@FILE:<プロジェクト相対パス>@@` と書くと、ファイル実体を読んで引数に差し替える
-  - `update_content` の連打（1 ページ 3 回超・複数置換の同梱・未 fetch ページへの適用）を deny する
-- **補助スクリプト** `scripts/notion_mirror.py`
-  - `pull` … セッションのトランスクリプトに逐語で残った `notion-fetch` 結果からローカル正本を作る
-  - `diff` … ローカル正本と fetch 結果を正規化して照合する（`CLEAN` / `DIRTY` / `STALE`）
-- **エージェント** `notion-writeback:notion-fetcher` … fetch とスクリプト実行だけを担う軽量（haiku）サブエージェント。判断はしない
-- **スキル** `/notion-writeback:notion-writeback` … fetch → pull → 編集 → diff → `replace_content`（センチネル）→ 再 fetch → `CLEAN` の手順
+- **PreToolUse hook** `scripts/notion_write_guard.py`
+  - Write `@@FILE:<path relative to the project root>@@` as `new_str` of `replace_content`, and the hook replaces it with the file contents
+  - Denies abuse of `update_content`: more than 3 calls per page per session, multiple replacements in one call, and calls against a page not fetched in this session
+- **Helper script** `scripts/notion_mirror.py`
+  - `pull` — builds a local source file from the verbatim `notion-fetch` result stored in the session transcript
+  - `diff` — compares the local source with the fetch result after normalization (`CLEAN` / `DIRTY` / `STALE`)
+- **Agent** `notion-writeback:notion-fetcher` — a lightweight (haiku) subagent that only fetches and runs the script. It makes no judgment
+- **Skill** `/notion-writeback:notion-writeback` — the procedure: fetch → pull → edit → diff → `replace_content` (sentinel) → fetch again → `CLEAN`
 
-## 前提
+## Prerequisites
 
-- Notion MCP サーバーが接続済みであること（このプラグインには同梱しない。`.mcp.json` に `{"type":"http","url":"https://mcp.notion.com/mcp"}` を追加する）
-- `python3` が PATH にあること
-- フックはプラグインが読み込まれたセッションで動く（Claude Code、および Customize → Plugins から入れた Cowork）。プロジェクトの `.claude/settings.json` に書いたフックは Cowork では読まれない。読み戻しで `@@FILE:...@@` が残っていたらフック未作動
+- A connected Notion MCP server (not bundled; add `{"type":"http","url":"https://mcp.notion.com/mcp"}` to your `.mcp.json`)
+- `python3` on `PATH`
+- The hook runs in any session that loads the plugin (Claude Code, and Cowork when installed via Customize → Plugins). Hooks written in a project's `.claude/settings.json` are not read by Cowork. If `@@FILE:...@@` is still in the page after a read-back, the hook did not run
 
-## 使い方
+## Usage
 
 ```text
-/notion-writeback:notion-writeback <ページ URL> を docs/page.md から書き戻して
+/notion-writeback:notion-writeback write <page URL> back from docs/page.md
 ```
 
-手順の詳細は [skills/notion-writeback/SKILL.md](skills/notion-writeback/SKILL.md)。
+See [skills/notion-writeback/SKILL.md](skills/notion-writeback/SKILL.md) for the full procedure (Japanese).

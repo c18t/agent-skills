@@ -2,20 +2,20 @@
 
 Personal agent skills and Claude Code plugin marketplace.
 
-## マーケットプレイスの追加とインストール
+## Install
 
 ```text
 /plugin marketplace add c18t/agent-skills
 /plugin install notion-writeback@c18t
 ```
 
-## プラグイン
+## Plugins
 
-| 名前 | 概要 |
+| Name | Summary |
 | --- | --- |
-| [notion-writeback](plugins/notion-writeback/README.md) | Notion MCP を安定して使うためのフックとスキル。`@@FILE:` センチネルで本文をファイルから直接注入し、`update_content` の連打を止める |
+| [notion-writeback](plugins/notion-writeback/README.md) | Hooks and a skill for using the Notion MCP reliably. Injects page bodies straight from files via the `@@FILE:` sentinel and blocks repeated `update_content` calls |
 
-## 開発
+## Development
 
 ```bash
 claude --plugin-dir ./plugins/notion-writeback
@@ -25,4 +25,4 @@ claude --plugin-dir ./plugins/notion-writeback
 claude plugin validate ./plugins/notion-writeback
 ```
 
-Markdown は `markdownlint-cli2 "**/*.md"` で検査する。
+Lint Markdown with `markdownlint-cli2 "**/*.md"`.

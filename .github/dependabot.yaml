@@ -1,0 +1,31 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for more information:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# https://containers.dev/guide/dependabot
+
+version: 2
+updates:
+  - package-ecosystem: devcontainers
+    directory: '/'
+    schedule:
+      interval: monthly
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: monthly
+    # actions の更新を1つの PR にまとめる
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: monthly
+    # 全て devDependencies のため1つの PR にまとめる
+    # （個別 PR だと pnpm-lock.yaml がマージのたびに競合し rebase の連鎖になる）
+    groups:
+      npm-dev-dependencies:
+        patterns:
+          - '*'
