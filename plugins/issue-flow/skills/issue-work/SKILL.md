@@ -11,7 +11,7 @@ issue を読み、専用の worktree を作ってセッションごと移動し�
 PR 本文をユーザーにレビューしてもらってから PR を作る。
 マージの承認を得たら squash merge し、worktree を片付ける。
 
-ユーザーの承認を取るのは 2 箇所（手順 9 の PR 本文と手順 11 のマージ）。それ以外は続けて進んでよい。
+ユーザーの承認を取るのは 2 箇所（手順 9 の PR 本文と手順 11 のマージ）。それ以外は続けて進めてよい。
 
 GitHub の読み書きは `gh` CLI か GitHub MCP のどちらかで行う。着手前に
 [reference/github-mcp.md](reference/github-mcp.md) の判定順で経路を 1 回だけ決める
