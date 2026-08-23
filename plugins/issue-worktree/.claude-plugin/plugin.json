@@ -1,7 +1,7 @@
 {
   "name": "issue-worktree",
   "description": "GitHub issue 番号から worktree を作ってセッションごと移動し、issue の解決・PR 作成・squash merge・worktree の片付けまでを進めるスキル",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "author": { "name": "c18t" },
   "keywords": ["git", "worktree", "github", "issue"]
 }

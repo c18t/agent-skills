@@ -163,43 +163,32 @@ gh pr view <PR番号> --json mergeable,mergeStateStatus
 `pending` が残っていれば `Monitor` ツールで待つ。`gh pr checks --watch` は**セッションを
 ブロックする**ので使わない。Monitor なら結果が届くまで他の作業を続けられる。
 
-🔴 **このループは Monitor の `command` に直接渡さない。スクリプトファイルに書いてから
-`bash <パス>` で渡す。** worktree に滞在中はコマンド置換とパイプの連結が
-「worktree の外に出ないと確認できない」と判定され、ハーネスに弾かれる
-（`this command is too complex to verify that it stays inside the worktree`）。
-ファイル経由なら通る。
-
-まずスクリプトを書く（`<スクラッチパッド>` はセッションのスクラッチパッド）。
+**ループを自分で組まない。** プラグイン同梱のスクリプトを Monitor の `command` に渡す。
 
 ```bash
-cat > <スクラッチパッド>/watch-pr.sh <<'SH'
-seen=""
-while true; do
-  cur=$(gh pr checks <PR番号> --json name,bucket --jq '.[] | select(.bucket != "pending") | "\(.name): \(.bucket)"' | sort)
-  printf '%s\n' "$cur" | grep -vxF "$seen" | grep .
-  seen="$cur"
-  gh pr checks <PR番号> --json bucket --jq 'all(.[]; .bucket != "pending")' | grep -q true && break
-  sleep 30
-done
-gh pr view <PR番号> --json mergeable,mergeStateStatus --jq '"MERGE STATE: \(.mergeable) / \(.mergeStateStatus)"'
-SH
+sh "${CLAUDE_PLUGIN_ROOT}/scripts/watch-pr.sh" <PR番号>
 ```
 
-そのうえで Monitor の `command` に `bash <スクラッチパッド>/watch-pr.sh` を渡す。
-最後の 1 行で `MERGE STATE` まで拾えるので、CI 完了後に改めて確認する手間が要らない。
+完了したチェックを 1 件ずつ出し、全部終わったら
+`MERGE STATE: <mergeable> / <mergeStateStatus>` を出して終了する。
+ポーリング間隔は第 2 引数で変えられる（既定 30 秒）。
 
-`bucket` は `pass` / `fail` / `pending` / `skipping` / `cancel` を取るので、**成功だけを
-拾う書き方にしない**（落ちたことに気づけなくなる）。上の形は完了したものを全部出す。
+🔴 **監視ループを Monitor の `command` に直接書かない。** worktree に滞在中は
+コマンド置換とパイプの連結が「worktree の外に出ないと確認できない」と判定され、
+ハーネスに弾かれる
+（`this command is too complex to verify that it stays inside the worktree`）。
+スクリプト経由なら通る。
 
-`seen` との差分だけを出しているのは、**毎ポーリングで完了済みを再送すると通知が重複する**ため。
-`grep .` は差分が無いときに空行を出さないためのもの。
+⚠️ 弾かれるのはプロセス置換（`<(...)`）だけではない。**コマンド置換とパイプの
+組み合わせ程度でも起きる。** 弾かれたら書き換えて粘らず、スクリプトへ逃がす。
 
-⚠️ jq の `all` は `all(.[]; <条件>)` の形で書く。`all(<条件>)` だと配列自身に条件が
-適用されて常に真になり、**CI を待たずに素通りする。**
+スクリプトが引き受けている判断は 3 つある。**自分で書き直すときも落とさない。**
 
-⚠️ worktree 滞在中にハーネスが弾くのはプロセス置換（`<(...)`）だけではない。
-**コマンド置換とパイプを組み合わせた程度でも弾かれる。**
-弾かれたら書き換えて粘らず、上のようにスクリプトファイルへ逃がす。
+- `bucket` は `pass` / `fail` / `pending` / `skipping` / `cancel` を取る。
+  **成功だけを拾う書き方にしない**（落ちたことに気づけなくなる）
+- 完了済みを毎回出すと**通知が重複する**ので、前回との差分だけを出す
+- jq の `all` は `all(.[]; <条件>)` の形で書く。`all(<条件>)` だと配列自身に条件が
+  適用されて常に真になり、**CI を待たずに素通りする**
 
 CI が落ちたら直してコミットし直す。**落ちたままマージへ進まない。**
 
