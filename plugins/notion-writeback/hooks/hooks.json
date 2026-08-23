@@ -1,0 +1,18 @@
+{
+  "description": "notion-update-page を実行前に検査する。@@FILE: センチネルの注入と update_content の抑制",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*notion-update-page",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/notion_write_guard.py\"",
+            "timeout": 10,
+            "statusMessage": "notion-guard: 書き込みを検査中"
+          }
+        ]
+      }
+    ]
+  }
+}

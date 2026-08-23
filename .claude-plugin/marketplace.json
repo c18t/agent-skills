@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agent-skills",
+  "description": "c18t の個人用 Claude Code プラグイン",
+  "owner": { "name": "c18t" },
+  "plugins": [
+    {
+      "name": "notion-writeback",
+      "description": "Notion MCP を安定して使うためのフックとスキル。@@FILE: センチネルで本文をファイルから直接注入し、update_content の連打を止める",
+      "source": "./plugins/notion-writeback",
+      "category": "productivity"
+    }
+  ]
+}
