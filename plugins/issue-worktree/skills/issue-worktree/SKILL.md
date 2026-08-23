@@ -195,7 +195,19 @@ CI が通っただけでは進めない。ユーザーが GitHub の UI で自�
 
 ### 12. squash merge して片付ける
 
-- **12-a** マージする
+- **12-a** worktree を出る
+
+  `ExitWorktree` ツールに `action: "keep"` を渡す。ここでは `remove` を使わない
+  （このスキルの worktree は `.claude/worktrees/` の外にあり `ExitWorktree` の管理外なので、
+  実際に消すのは 12-c）。
+
+  🔴 **マージより先に出る。** worktree の中から `gh pr merge --delete-branch` を実行すると、
+  GitHub 側のマージは成功するのに `gh` のローカル後処理が
+  `fatal: '<デフォルトブランチ>' is already checked out at '<メインのパス>'` で失敗する。
+  **コマンドは非ゼロ終了するがマージは完了している**ため、失敗と読んで再実行すると
+  マージ済みの PR を操作することになる
+
+- **12-b** マージする
 
   ```bash
   gh pr merge --squash --delete-branch \
@@ -205,13 +217,10 @@ CI が通っただけでは進めない。ユーザーが GitHub の UI で自�
 
   `--subject` と `--body-file` を渡すのは、**省略すると GitHub が各コミットのメッセージを
   連結した本文を既定にしてしまい、あとから UI で直す必要が出るため。**
-  `--delete-branch` でリモートブランチも消える
+  `--delete-branch` でリモートブランチも消える。
 
-- **12-b** worktree を出る
-
-  `ExitWorktree` ツールに `action: "keep"` を渡す。ここでは `remove` を使わない
-  （このスキルの worktree は `.claude/worktrees/` の外にあり `ExitWorktree` の管理外なので、
-  実際に消すのは 12-c）
+  それでも失敗したときは、**再実行の前に `gh pr view <PR番号> --json state,mergedAt` で
+  マージ済みかどうかを確かめる**（`state: MERGED` なら完了している）
 
 - **12-c** worktree とローカルブランチを片付ける
 
@@ -226,7 +235,7 @@ CI が通っただけでは進めない。ユーザーが GitHub の UI で自�
 
   ローカルブランチの削除に `-D` を使うのは、**squash merge が元のコミットとは別の新しい
   コミットを作るため、`-d` が「マージされていない」と判断して拒むから。**
-  12-a のマージ成功を確認したうえで実行する。`--delete-branch` で既に消えていれば
+  12-b のマージ成功を確認したうえで実行する。`--delete-branch` で既に消えていれば
   `git branch` は失敗するが、それは正常なので無視してよい
 
 - **12-d** `*.code-workspace` から worktree の記載を消す
@@ -240,7 +249,7 @@ CI が通っただけでは進めない。ユーザーが GitHub の UI で自�
   ⚠️ `.code-workspace` は JSONC で、**末尾カンマやコメントが書かれていることがある。**
   JSON として読み直して書き戻すとそれらが消えるので、**Edit で該当要素の行だけを取り除く。**
 
-  この編集はメインチェックアウト側への書き込みなので、**12-b で worktree を出た後に行う。**
+  この編集はメインチェックアウト側への書き込みなので、**12-a で worktree を出た後に行う。**
 
 - **12-e** マージ済みであることを確認して報告する
 
@@ -273,11 +282,11 @@ worktree のディレクトリは残るので、`EnterWorktree` に同じ `path`
 - **リポジトリで squash merge が無効** … `gh pr merge --squash` が拒まれる。
   設定を変えずにユーザーへ伝える。**`--merge` や `--rebase` に勝手に切り替えない**
 - **`--subject` / `--body-file` を省く** … GitHub が各コミットのメッセージを連結した本文を
-  既定にする。これを避けるのが手順 12-a の目的なので必ず渡す
+  既定にする。これを避けるのが手順 12-b の目的なので必ず渡す
 - **`*.code-workspace` の編集がハーネスに弾かれる** … このファイルはメインチェックアウト側にある。
   追記は移動前（手順 4）、削除は `ExitWorktree` の後（手順 12-d）に行う。
   順序を守っていれば起きない
 - **`git worktree remove` が拒む** … 未コミットの変更が残っている。
   `--force` を付けずに止まり、内容をユーザーに伝える
 - **worktree の中から `git worktree remove` を実行する** … 自分がいるディレクトリは消せない。
-  手順 12-b の `ExitWorktree` で先にメイン側へ戻る
+  手順 12-a の `ExitWorktree` で先にメイン側へ戻る
