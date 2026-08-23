@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "agent-skills",
+  "name": "c18t",
   "description": "c18t の個人用 Claude Code プラグイン",
   "owner": { "name": "c18t" },
   "plugins": [

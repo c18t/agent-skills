@@ -6,7 +6,7 @@ Personal agent skills and Claude Code plugin marketplace.
 
 ```text
 /plugin marketplace add c18t/agent-skills
-/plugin install notion-writeback@agent-skills
+/plugin install notion-writeback@c18t
 ```
 
 ## プラグイン

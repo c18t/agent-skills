@@ -15,13 +15,14 @@ Notion MCP でページ本文をツール引数に打ち直すと、呼び出し
 - **補助スクリプト** `scripts/notion_mirror.py`
   - `pull` … セッションのトランスクリプトに逐語で残った `notion-fetch` 結果からローカル正本を作る
   - `diff` … ローカル正本と fetch 結果を正規化して照合する（`CLEAN` / `DIRTY` / `STALE`）
+- **エージェント** `notion-writeback:notion-fetcher` … fetch とスクリプト実行だけを担う軽量（haiku）サブエージェント。判断はしない
 - **スキル** `/notion-writeback:notion-writeback` … fetch → pull → 編集 → diff → `replace_content`（センチネル）→ 再 fetch → `CLEAN` の手順
 
 ## 前提
 
 - Notion MCP サーバーが接続済みであること（このプラグインには同梱しない。`.mcp.json` に `{"type":"http","url":"https://mcp.notion.com/mcp"}` を追加する）
 - `python3` が PATH にあること
-- フックが動くのは Claude Code のローカルセッションだけ。Cowork／クラウドセッションでは `@@FILE:...@@` がそのまま本文になる
+- フックはプラグインが読み込まれたセッションで動く（Claude Code、および Customize → Plugins から入れた Cowork）。プロジェクトの `.claude/settings.json` に書いたフックは Cowork では読まれない。読み戻しで `@@FILE:...@@` が残っていたらフック未作動
 
 ## 使い方
 

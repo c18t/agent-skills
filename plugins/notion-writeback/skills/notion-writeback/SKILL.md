@@ -95,18 +95,12 @@ fetch と `notion_mirror.py` の実行は投げてよい。**境界は「機構�
   ユーザーが Notion 側で直した変更を「編集のうち」と見なして通し、上書きする
 - 🔴 ❌ **差分やページ本文を要約・引用させない**——本文がモデルの出力を経由した瞬間、センチネルで消したはずの化けの経路が戻る
 
-投げ方：
+投げ方は固定されている。**自分で依頼文を組まない。**
 
-1. サブエージェントに `ToolSearch` で `select:mcp__notion__notion-fetch` を読み込ませる（MCP ツールは遅延ロードなので明示が要る）
-2. ページを fetch させ、`notion_mirror.py diff ... > <出力ファイル> 2>&1` まで**サブエージェント内で**やらせる
-3. **本体が出力ファイルを読んで判断する**
-
-次の 2 つを**明示する**（書かないとリトライしたり失敗と報告したりする）。
-
-- 「fetch が `exceeds maximum allowed tokens` で失敗しても正常。結果は `tool-results/` に保存され、`notion_mirror.py` がそこから読むのでリトライも中身の確認も不要」
-- 「終了コード 1 はエラーではなく『差分を読め』の合図」
-
-返させるのは**出力ファイルのパスと、`CLEAN`／`DIRTY`／`STALE` の一語と、差分の件数だけ**。
+1. `Agent` ツールで `subagent_type: "notion-writeback:notion-fetcher"` を指定する（このプラグイン同梱の軽量エージェント。
+   リトライ禁止・要約禁止・報告形式・`exceeds maximum allowed tokens` は正常・終了コード 1 は合図、をすべて持っている）
+2. 依頼文は [reference/subagent-prompt.md](reference/subagent-prompt.md) のテンプレートに**対象ページと引数だけ**埋める
+3. 返ってくるのは `<ページ ID>: <CLEAN|DIRTY|STALE|OK> 差分 <N> 件 → <出力ファイル>` の行だけ。**本体が出力ファイルを読んで判断する**
 
 | | 期待値 | 本体が見るもの |
 | --- | --- | --- |
@@ -125,17 +119,25 @@ fetch と `notion_mirror.py` の実行は投げてよい。**境界は「機構�
 
 Notion MCP 全般の実測（fetch の上限、`notion-search` のラグ、リストの再採番など）は [reference/notion-mcp-notes.md](reference/notion-mcp-notes.md)。
 
-## フックが動かない環境
+## フックが動く環境・動かない環境
 
-センチネルを注入しているのはこのプラグインの PreToolUse フック（`scripts/notion_write_guard.py`）で、
-**Claude Code のローカルセッションでだけ有効**。
+センチネルを注入しているのはこのプラグインの PreToolUse フック（`scripts/notion_write_guard.py`）。
+**プラグインが読み込まれているセッションでだけ有効**で、環境ではなく読み込み経路で決まる。
 
-⚠️ **Cowork（クラウド）セッションからは書き戻せない。** フックが介在しないので
-`@@FILE:...@@` という文字列がそのまま本文になり、さらに `notion_mirror.py` が読む
-`~/.claude/projects/` のトランスクリプトにクラウド側の fetch が残らないため、照合も `CLEAN` 確認もできない。
-📌 **クラウドでは編集まで。書き戻しはローカルへ持ち越す。**
+| 環境 | フック | `notion_mirror.py` |
+| --- | --- | --- |
+| Claude Code（ローカル） | 動く | 動く |
+| Cowork（プラグインを Customize → Plugins からインストール済み） | 動く想定（PreToolUse は動く前提だが実測未確認） | ⚠️ トランスクリプトが `~/.claude/projects/` に無い可能性があり `STALE` になりうる |
+| プロジェクトの `.claude/settings.json` に書いたフック | **Cowork では読まれない** | — |
 
-Claude Code なのに `@@FILE:` が残ったときはプラグインが読み込まれていない。`/plugin` で有効化を確認し `/reload-plugins` する。
+📌 かつて「Cowork からは書き戻せない」と観測されたのは、フックをプラグインではなく
+プロジェクトの `.claude/settings.json` に置いていたため。プラグイン化した今は同じ理由では止まらない。
+
+判定は環境の推測ではなく**読み戻しで行う**：書いた直後の `notion-fetch` で本文に `@@FILE:...@@` が残っていたらフックが動いていない。
+そのときはその文字列が本文になっているので、ローカル正本から `replace_content` で直す前に、プラグインの有効化を確認する
+（Claude Code なら `/plugin` と `/reload-plugins`、Cowork なら Customize → Plugins）。
+`notion_mirror.py` が `STALE` のままなら照合はできないので、**編集までにして書き戻しはローカルの Claude Code へ持ち越す。**
+
 どうしても全文転記に切り替えるなら、**直前に必ずファイル全文を Read してコピーする。記憶から書かない。**
 
 ### フックが機械的に止めていること
