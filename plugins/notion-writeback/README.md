@@ -14,9 +14,9 @@ This plugin creates a path where the page body never passes through the model's 
   - Denies abuse of `update_content`: more than 3 calls per page per session, multiple replacements in one call, and calls against a page not fetched in this session
 - **Helper script** `scripts/notion_mirror.py`
   - `pull` — builds a local source file from the verbatim `notion-fetch` result stored in the session transcript
-  - `diff` — compares the local source with the fetch result after normalization (`CLEAN` / `DIRTY` / `STALE`). Normalization folds Notion's auto-linking of bare filenames and domain-like tokens (`notion_mirror.py` → `notion_[mirror.py](http://mirror.py)`), but only where the link text equals its target, so hand-pasted links still show up as diffs
+  - `diff` — compares the local source with the fetch result after normalization (`CLEAN` / `DIRTY` / `STALE`; exit 0 for `CLEAN`, 1 for `DIRTY` / `STALE`, 3 for a real failure). It always prints at least one line, so **empty output means the script never ran — never "no differences"**. Normalization folds Notion's auto-linking of bare filenames and domain-like tokens (`notion_mirror.py` → `notion_[mirror.py](http://mirror.py)`), but only where the link text equals its target, so hand-pasted links still show up as diffs
 - **Wrapper** `scripts/python.sh` — runs the Python scripts with whichever of `python3` / `python` / `py -3` exists, so the hook works on Linux, WSL, and Windows (Git Bash) alike. Exits 2 when none is found
-- **Agent** `notion-writeback:notion-fetcher` — a lightweight (haiku) subagent that only fetches and runs the script. It makes no judgment
+- **Agent** `notion-writeback:notion-fetcher` — a lightweight (haiku) subagent that only fetches and runs the script. It makes no judgment: the word it reports comes from the marker at the head of the output file, and is `ERROR` when there is none — including when the file is empty
 - **Skill** `/notion-writeback:notion-writeback` — the procedure: fetch → pull → edit → diff → `replace_content` (sentinel) → fetch again → `CLEAN`
 
 ## Prerequisites

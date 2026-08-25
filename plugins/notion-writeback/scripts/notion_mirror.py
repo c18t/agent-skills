@@ -34,6 +34,12 @@ DIRTY の意味は「ローカルと Notion が違う」だけ。運用は必ず
   - ⚠️食い違い              [replace] 両側にあって内容が違う          → 要確認
 
 終了コード 1 は **エラーではなく「差分を読め」の合図**（DIRTY と STALE の両方で 1）。
+2 以上は本物の失敗（argparse の 2、_die が出す 3＝ページ ID 不正・ローカル正本不在・
+トランスクリプト不在）。
+
+CLEAN でも DIRTY でも **必ず 1 行は出す**。だから出力が空なら、それは「差分なし」ではなく
+このスクリプトが走らなかったということ（インタプリタ不在・リダイレクト失敗など）。空を
+CLEAN と読むと、書き戻しを止める唯一のゲートが黙って開く（#31）。
 
 実装上の落とし穴（実際に踏んだもの）
 ------------------------------------
@@ -63,6 +69,20 @@ CONTENT_RE = re.compile(r"<content>\n?(.*?)\n?</content>", re.S)
 FIRST_PAGE_RE = re.compile(r'<page url="https://app\.notion\.com/p/([0-9a-f]{32})"')
 FIRST_PAGE_ESC_RE = re.compile(r'<page url=\\"https://app\.notion\.com/p/([0-9a-f]{32})\\"')
 PAGE_ID_RE = re.compile(r"[0-9a-f]{32}")
+
+
+# --- 失敗の出し方 --------------------------------------------------------------
+
+# 本物の失敗の終了コード。1 は DIRTY / STALE（＝「差分を読め」の合図）で埋まっており、
+# 2 は argparse と python.sh のインタプリタ不在が使っている。呼び出し側が「照合が
+# 済んだ上での DIRTY」と「そもそも照合できていない」を区別できるよう、別の番号にする。
+EXIT_ERROR = 3
+
+
+def _die(message: str) -> None:
+    """本物の失敗。報告する語を先頭の印から決められるよう ERROR: を前に置く（#31）。"""
+    print(f"ERROR: {message}", file=sys.stderr)
+    sys.exit(EXIT_ERROR)
 
 
 # --- ページ ID ----------------------------------------------------------------
@@ -105,8 +125,8 @@ def session_transcript(pdir: Path) -> Path:
             return path
     files = sorted(pdir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime)
     if not files:
-        sys.exit(f"トランスクリプトが見つからない: {pdir}"
-                 "（--transcript で指定するか、NOTION_MIRROR_PROJECT_DIR を設定する）")
+        _die(f"トランスクリプトが見つからない: {pdir}"
+             "（--transcript で指定するか、NOTION_MIRROR_PROJECT_DIR を設定する）")
     return files[-1]
 
 
@@ -267,7 +287,7 @@ def compare(local: str, remote: str, label: str, context: int = 30) -> bool:
 def _lookup(args):
     page_id = normalize_page_id(args.page)
     if not page_id:
-        sys.exit(f"ページ ID の形式が不正: {args.page!r}（URL か 32 桁の hex を渡す）")
+        _die(f"ページ ID の形式が不正: {args.page!r}（URL か 32 桁の hex を渡す）")
     found, chain = harvest_session(args.transcript)
     return page_id, found.get(page_id), chain
 
@@ -292,7 +312,7 @@ def cmd_diff(args) -> int:
     page_id, hit, chain = _lookup(args)
     path = Path(args.file)
     if not path.exists():
-        sys.exit(f"ローカル正本がない: {path}（先に pull する）")
+        _die(f"ローカル正本がない: {path}（先に pull する）")
     if hit is None:
         print(f"STALE: {page_id} — このセッションに fetch がない。notion-fetch してから再実行する")
         print("  探索したトランスクリプト: " + ", ".join(p.name for p in chain))
