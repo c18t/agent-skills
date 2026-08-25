@@ -370,6 +370,38 @@ class ReportContractDocTestCase(unittest.TestCase):
         self.assertTrue(re.search(r"空.*(0 行|0 バイト)", agent),
                         "notion-fetcher.md に「空＝異常」が書かれていない")
 
+    def test_agent_appends_nothing_to_the_report_line(self):
+        """#32 の例外（1 行目を添えてよい）を復活させない。
+
+        実測（#33、12 回）で、末尾に何を添える形にしても報告行の前後に
+        文章が付いた。添えさせること自体をやめたので、旧文が戻っていないか見る。
+        """
+        agent = self.read("agents", "notion-fetcher.md")
+        self.assertNotIn("空なら「空」と書く", agent,
+                         "#32 の「空なら『空』と書く」が復活している（#33 で削除した）")
+        self.assertNotIn("末尾に添えてよい", agent,
+                         "「添えてよい」が復活している。許可を残すと自然言語の余地が戻る")
+        self.assertTrue(re.search(r"`ERROR` でも末尾に何も添えない", agent),
+                        "notion-fetcher.md に「ERROR でも何も添えない」が無い")
+
+    def test_agent_forbids_prose_around_the_report_line(self):
+        """観測①は実在しないコマンドを創作した。診断させないこと自体に価値がある。"""
+        agent = self.read("agents", "notion-fetcher.md")
+        for fragment in ("報告行の前後に文章を書かない", "コマンドの修正案"):
+            with self.subTest(fragment=fragment):
+                self.assertTrue(fragment in agent,
+                                f"notion-fetcher.md に {fragment!r} の禁止が無い")
+
+    def test_body_is_told_to_ignore_prose_around_the_report_line(self):
+        """禁止しても前置きは出る（実測 9/12）。本体側で読み捨てる契約が要る。"""
+        skill = self.read("skills", "notion-writeback", "SKILL.md")
+        prompt = self.read("skills", "notion-writeback", "reference",
+                           "subagent-prompt.md")
+        for name, text in (("SKILL.md", skill), ("subagent-prompt.md", prompt)):
+            with self.subTest(doc=name):
+                self.assertTrue(re.search(r"報告行だけを抜き出", text),
+                                f"{name} に「報告行だけを抜き出す」が無い")
+
 
 if __name__ == "__main__":
     unittest.main()
