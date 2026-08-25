@@ -204,7 +204,8 @@ CI が落ちたら直してコミットし直す。**落ちたままマージへ
 CI が通ったら、次の 3 点をチャットに出してユーザーの承認を待つ。
 
 - CI の結果と、マージ可能かどうか（`mergeStateStatus`）
-- マージ後のコミットタイトル … 手順 10 の PR タイトルと同じ
+- マージ後のコミットタイトル … 手順 10 の PR タイトル＋**末尾に半角スペース＋`(#<PR番号>)`**
+  （例 `release: issue-flow 0.3.0 (#42)`。`main` の履歴からリリース PR を引けるようにする）
 - 含まれる PR と issue が、マージ後にどうなる見込みか（手順 12 の確認項目）
 
 **「マージしておいて」と明示的に言われたときだけ進む。**
@@ -218,10 +219,14 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 - **11-b** マージする
 
   ```bash
-  gh pr merge <PR番号> --merge --subject "release: <プラグイン名> <version>"
+  gh pr merge <PR番号> --merge --subject "release: <プラグイン名> <version> (#<PR番号>)"
   ```
 
-  MCP 経路は `merge_pull_request`（`merge_method: merge`、`commit_title` に同じタイトル）。
+  ❗ **`--subject` の末尾に半角スペース＋`(#<PR番号>)` を付ける。** `--subject` を渡すと GitHub が
+  既定で付ける番号が消えるので、自分で書かないと `main` の履歴からリリース PR を引けなくなる。
+
+  MCP 経路は `merge_pull_request`（`merge_method: merge`、`commit_title` に同じタイトル。
+  **ここでも末尾に半角スペース＋`(#<PR番号>)` を付ける**）。
   本文を付けるなら `commit_message` に `@@FILE:<相対パス>@@`。
 
   🔴 **`--squash` を使わない**（含まれる PR が 1 本も自動クローズしなくなる）。

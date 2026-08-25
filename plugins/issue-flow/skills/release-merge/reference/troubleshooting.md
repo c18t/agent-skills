@@ -72,6 +72,8 @@ base の張り替えを選んでよいのは、`deleteBranchOnMerge` が無効�
   デフォルトブランチへの到達。release へ入れただけでは閉じない。[auto-close.md](auto-close.md)
 - **リポジトリで merge commit が無効** … `gh pr merge --merge` が拒まれる。
   設定を変えずにユーザーへ伝える。**`--squash` や `--rebase` に勝手に切り替えない**
+- **`--subject` の末尾に半角スペース＋`(#<PR番号>)` を付け忘れる** … `--subject` を渡すと
+  GitHub が既定で付ける番号が消える。`main` の履歴からリリース PR を引けなくなるので自分で書く
 - **`--delete-branch` を付ける** … ローカル側は worktree が checkout したままなので必ず失敗する。
   削除は 12-c で行う
 - **worktree の中から `gh pr merge` を実行する** … GitHub 側は成功するのに `gh` の
