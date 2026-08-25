@@ -120,7 +120,8 @@ CI もレビューも通り抜けた。
   センチネルで渡す」節にまとめてある
 - **`merge_pull_request` には `commit_title` / `commit_message` を必ず渡す。**
   `--subject` / `--body-file` と同じ理由（省くと GitHub が各コミットのメッセージを連結した
-  本文を既定にする）
+  本文を既定にする）。❗ **`commit_title` の末尾には半角スペース＋`(#<PR番号>)` を付ける**
+  （渡した時点で GitHub の既定の番号が消えるため）
 - **`push_files` は 1 回の呼び出しが 1 コミット。** ローカルの複数コミットをそのまま送る手段は
   無い。`create_branch`（起点はデフォルトブランチ）でリモートに同名ブランチを作り、変更した
   全ファイルを 1 回の `push_files` で積む。`issue-work` は squash merge 前提なので、

@@ -201,7 +201,9 @@ CI が落ちたら直してコミットし直す。**落ちたままマージへ
 CI が通ったら、次の 3 点をチャットに出してユーザーの承認を待つ。
 
 - CI の結果と、マージ可能かどうか（`mergeStateStatus`）
-- squash merge 後のコミットタイトル … 手順 9 で承認された PR タイトルと同じ英文
+- squash merge 後のコミットタイトル … 手順 9 で承認された PR タイトル＋**末尾に半角スペース＋`(#<PR番号>)`**
+  （例 `fix(scope): drop the stale flag (#34)`。GitHub の既定と揃え、`main` の履歴から
+  PR を引けるようにする）
 - squash merge 後のコミット本文 … 日本語の箇条書き（PR 本文の「なにをやったか」が土台）
 
 **「マージしておいて」と明示的に言われたときだけ手順 12 へ進む。** CI が通っただけでは進めない。
@@ -219,13 +221,16 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 
   ```bash
   gh pr merge <PR番号> --squash \
-    --subject "<承認されたタイトル>" \
+    --subject "<承認されたタイトル> (#<PR番号>)" \
     --body-file <本文ファイル>
   ```
 
+  ❗ **`--subject` の末尾に半角スペース＋`(#<PR番号>)` を付ける。** `--subject` を渡すと GitHub が
+  既定で付ける番号が消えるので、自分で書かないと `main` の履歴から PR を引けなくなる。
+
   MCP 経路は `merge_pull_request`（`merge_method: squash`）。承認されたタイトルは
-  `commit_title` に文字列で、**本文はファイルに保存して `commit_message` に
-  `@@FILE:<相対パス>@@`** を渡す。
+  `commit_title` に文字列で（**ここでも末尾に半角スペース＋`(#<PR番号>)` を付ける**）、
+  **本文はファイルに保存して `commit_message` に `@@FILE:<相対パス>@@`** を渡す。
 
   `--subject` と `--body-file`（MCP なら `commit_title` / `commit_message`）は必ず渡す
   （省くと GitHub が各コミットのメッセージを連結した本文を既定にする）。

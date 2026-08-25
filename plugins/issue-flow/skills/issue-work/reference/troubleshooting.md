@@ -60,6 +60,8 @@ worktree のディレクトリは残るので、`EnterWorktree` に同じ `path`
   マージ済みかどうかを確かめる（`state: MERGED` なら完了している）
 - **`--subject` / `--body-file` を省く** … GitHub が各コミットのメッセージを連結した本文を
   既定にし、あとから UI で直す必要が出る。これを避けるのが手順 12-b の目的なので必ず渡す
+- **`--subject` の末尾に半角スペース＋`(#<PR番号>)` を付け忘れる** … `--subject` を渡すと GitHub が
+  既定で付ける番号が消える。`main` の履歴から PR を引けなくなるので自分で書く
 - **`--delete-branch` を付ける** … リモートとローカルの両方を消そうとするが、ローカル側は
   worktree が checkout したままなので必ず失敗する
   （`Cannot delete branch '<ブランチ名>' checked out at '<worktree のパス>'`）。削除は 12-c で行う
