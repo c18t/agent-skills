@@ -246,15 +246,25 @@ class CliContractTestCase(unittest.TestCase):
         return path
 
     def run_cli(self, *args):
-        """python.sh は経由しない（Windows ランナーでも sh 依存を持ち込まないため）。"""
+        """python.sh は経由しない（Windows ランナーでも sh 依存を持ち込まないため）。
+
+        ⚠️ text=True に任せない。Windows では子プロセスの出力がコンソールの
+        コードページ（cp932）で来るので、UTF-8 として読むと落ちて stdout が None になる。
+        子には PYTHONIOENCODING=utf-8 を渡し、こちらはバイト列で受けて明示的に decode する
+        （test_notion_write_guard.py と同じ作法）。
+        """
+        env = dict(os.environ)
+        env["PYTHONIOENCODING"] = "utf-8"
         proc = subprocess.run(
             [sys.executable, SCRIPT, *args],
-            capture_output=True, text=True, encoding="utf-8", timeout=60)
+            capture_output=True, env=env, timeout=60)
+        out = proc.stdout.decode("utf-8")
+        err = proc.stderr.decode("utf-8")
         # 印は stdout か stderr のどちらかに必ず出る。空なら判定不能＝#31 の事故。
-        self.assertTrue((proc.stdout + proc.stderr).strip(),
+        self.assertTrue((out + err).strip(),
                         "出力が空。CLEAN でも DIRTY でも 1 行は出るはずで、"
                         "空は「差分なし」ではなくスクリプトが走らなかった合図")
-        return proc
+        return subprocess.CompletedProcess(proc.args, proc.returncode, out, err)
 
     def run_diff(self, local_body, remote_body, page=None):
         transcript = self.write_transcript(remote_body)
