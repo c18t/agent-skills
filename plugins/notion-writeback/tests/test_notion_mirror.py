@@ -10,6 +10,10 @@ Notion は保存時に「ドットを含む英数字トークン」を自動で�
 リンク（テキストと URL が違う）は畳まないので、それを消す編集は差分として残る。
 その両側をここで固定する。
 
+チェックボックスも同じ「正規化が消しすぎると事故る」系統。`[ ]` と `[x]` を
+両方とも空文字にしていたため、Notion 側で入れたチェックが `CLEAN` と判定され、
+書き戻しで黙って消えていた（#36）。TestCheckboxState がその両側を固定する。
+
 difflib の tag は a（＝ローカル）基準で付くので、`delete` は「自分の追記」、
 `insert` が「書き戻すと消える Notion 側」になる。SKILL.md はここを逆に説明していた（#6）。
 文言を直しても出力が英単語のままだと読み違いは再発しうるので、意味の分かるラベルを
@@ -103,14 +107,73 @@ class TestHandWrittenLinksSurvive(unittest.TestCase):
         self.assertFalse(compare_quiet(local, remote))
 
 
+class TestCheckboxState(unittest.TestCase):
+    """チェックの有無は飾りではなく内容なので、差分に残す（#36）。
+
+    かつて normalize() は `[ ]` と `[x]` を**両方とも空文字**に畳んでいた。
+    そのため「Notion 側で誰かがチェックを入れた」状態が `CLEAN` と判定され、
+    書き戻しがそのチェックを黙って `[ ]` に戻していた。照合は書き戻し前の
+    唯一のゲートなので、ここが素通りするとゲートごと無効になる。
+
+    実測（検証用ページ / 2026-08-30）:
+      - Notion は `- [ ]` / `- [x]` を保存時に書き換えない（そのまま返る）
+      - `- [X]`（大文字）は `- [x]` に正規化して返す
+    つまり大文字はローカル側にしか現れず、吸収しないと恒久 DIRTY になる。
+    """
+
+    def test_checked_and_unchecked_are_distinguished(self):
+        # 🔴 本命。ここが等しくなると書き戻しでチェックが消える
+        self.assertNotEqual(
+            notion_mirror.normalize("- [ ] やる"), notion_mirror.normalize("- [x] やる"))
+
+    def test_notion_side_check_is_dirty(self):
+        # ローカルは未チェック、Notion 側で誰かがチェックを入れた状態
+        self.assertFalse(compare_quiet("- [ ] やる\n- [ ] ほか", "- [x] やる\n- [ ] ほか"))
+
+    def test_notion_side_uncheck_is_dirty(self):
+        # 逆向き（チェックを外された）も拾う
+        self.assertFalse(compare_quiet("- [x] やる", "- [ ] やる"))
+
+    def test_same_state_is_clean(self):
+        # 誤検出しないこと。チェック状態が同じなら CLEAN のまま
+        self.assertTrue(compare_quiet("- [ ] やる\n- [x] やった", "- [ ] やる\n- [x] やった"))
+
+    def test_uppercase_x_folds_to_checked(self):
+        # Notion は [X] を [x] に正規化して返す。吸収しないと恒久 DIRTY になる
+        self.assertEqual(
+            notion_mirror.normalize("- [X] やった"), notion_mirror.normalize("- [x] やった"))
+        self.assertTrue(compare_quiet("- [X] やった", "- [x] やった"))
+
+    def test_escaped_brackets_match_bare_ones(self):
+        # Notion の仕様上 [ ] はエスケープ対象。normalize() は先に \\ を落とすので畳める
+        self.assertTrue(compare_quiet(r"- \[ \] やる", "- [ ] やる"))
+
+    def test_nested_todos_are_tracked_per_item(self):
+        # タブインデントの子項目も個別に判定される
+        self.assertFalse(compare_quiet("- [ ] 親\n\t- [x] 子", "- [x] 親\n\t- [x] 子"))
+
+    def test_bare_brackets_in_prose_are_not_checkboxes(self):
+        # 地の文の [] を未チェックと混同しない（畳み先が地の文に出ない記号である理由）
+        self.assertNotEqual(
+            notion_mirror.normalize("配列は [] で表す"),
+            notion_mirror.normalize("配列は [ ] で表す"))
+
+    def test_checkbox_diff_is_labeled_as_mismatch(self):
+        # 出力ラベルの固定。チェックの差は ⚠️食い違い [replace] として出る
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            notion_mirror.compare("- [ ] やる", "- [x] やる", "テスト")
+        out = buf.getvalue()
+        self.assertIn("⚠️食い違い [replace]", out)
+        self.assertIn("☐", out)
+        self.assertIn("☑", out)
+
+
 class TestExistingNormalization(unittest.TestCase):
     """既存の正規化が壊れていないこと。"""
 
     def test_tags_are_stripped(self):
         self.assertEqual(notion_mirror.normalize("あ<table_of_contents/>い"), "あい")
-
-    def test_checkboxes_are_stripped(self):
-        self.assertEqual(notion_mirror.normalize("- [ ] やる\n- [x] やった"), "やるやった")
 
     def test_whitespace_and_markup_are_stripped(self):
         self.assertEqual(
