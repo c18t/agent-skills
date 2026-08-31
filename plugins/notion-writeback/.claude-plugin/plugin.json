@@ -1,7 +1,7 @@
 {
   "name": "notion-writeback",
   "description": "Notion MCP を安定して使うためのフックとスキル。@@FILE: センチネルで本文をファイルから直接注入し、update_content の連打を止める",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "author": { "name": "c18t" },
   "keywords": ["notion", "mcp", "hooks"]
 }
