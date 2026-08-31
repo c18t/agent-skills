@@ -16,8 +16,13 @@
 - <ページ ID or URL 2> … ローカル正本 <path/to/page2.md>
 
 コマンド（ページごと、作業ディレクトリは <プロジェクトルート>）:
+# macOS / Linux
 sh "<CLAUDE_PLUGIN_ROOT>/scripts/python.sh" "<CLAUDE_PLUGIN_ROOT>/scripts/notion_mirror.py" diff --page <ID> --file <ローカル正本> > <出力ディレクトリ>/<ID>.diff.txt 2>&1
+# Windows
+& "<CLAUDE_PLUGIN_ROOT>\scripts\python.cmd" "<CLAUDE_PLUGIN_ROOT>\scripts\notion_mirror.py" diff --page <ID> --file <ローカル正本> > <出力ディレクトリ>\<ID>.diff.txt 2>&1
 ```
+
+⚠️ **依頼文に載せるのは実行する環境の 1 行だけ。** 両方渡すとどちらを実行するか迷う。
 
 ## pull（ローカル正本の作成）
 
@@ -28,7 +33,10 @@ sh "<CLAUDE_PLUGIN_ROOT>/scripts/python.sh" "<CLAUDE_PLUGIN_ROOT>/scripts/notion
 - <ページ ID or URL> … 書き出し先 <path/to/page.md>
 
 コマンド（作業ディレクトリは <プロジェクトルート>）:
+# macOS / Linux
 sh "<CLAUDE_PLUGIN_ROOT>/scripts/python.sh" "<CLAUDE_PLUGIN_ROOT>/scripts/notion_mirror.py" pull --page <ID> --out <書き出し先> > <出力ディレクトリ>/<ID>.pull.txt 2>&1
+# Windows
+& "<CLAUDE_PLUGIN_ROOT>\scripts\python.cmd" "<CLAUDE_PLUGIN_ROOT>\scripts\notion_mirror.py" pull --page <ID> --out <書き出し先> > <出力ディレクトリ>\<ID>.pull.txt 2>&1
 ```
 
 ⚠️ `pull` は既存のローカル正本を**上書きする**。未書き戻しの編集があるページには投げない。
@@ -44,4 +52,26 @@ sh "<CLAUDE_PLUGIN_ROOT>/scripts/python.sh" "<CLAUDE_PLUGIN_ROOT>/scripts/notion
 ⚠️ **報告行の前後に文章が付いていても読まない**（状況説明・前置きが出ることがある）。
 🔴 **報告行だけを抜き出す。** `ERROR` の理由は出力ファイルから取る（→ #33）。
 
+## 依頼文を組むときに実パスへ展開するもの
+
 `<CLAUDE_PLUGIN_ROOT>` は依頼文を組む時点で実パスに展開しておく（サブエージェントの環境で変数が展開される保証がない）。
+
+📌 **`<出力ディレクトリ>` も同じく実パスで渡す。`/tmp` と書かない。**
+`/tmp` はシェルによって別の実体に解決される（実測）。
+
+| 実行側 | 着地先 |
+| --- | --- |
+| PowerShell | ドライブ直下に `C:\tmp\` を**新規作成** |
+| Bash (Git Bash) | `C:\Users\<user>\AppData\Local\Temp` |
+
+⚠️ **どちらに落ちたかで報告のパスが変わる**ので、本体が出力ファイルを読もうとして見失う。
+`$TEMP` / `$env:TEMP` かプロジェクト内のスクラッチ用ディレクトリを、**実パスに展開して**渡す。
+ディレクトリが無いとリダイレクト自体が失敗して出力が空になり、`ERROR` として返る。
+
+## Windows で `sh` を渡さない理由
+
+⚠️ **Windows は `.sh` を直接実行できない。** それでも `sh "…/python.sh"` を渡すと、
+PowerShell 側のサブエージェントが先頭の `sh` を呼び出し演算子 `&` に「移植」することがある（実測 → #38）。
+そうなると外部プロセスが 1 つも走らず、出力は 0 バイト・`exit` は**空文字**になる。
+
+📌 だから**環境に合う入口をこちらで選んで渡す。** エージェント側の規律に頼らない。
