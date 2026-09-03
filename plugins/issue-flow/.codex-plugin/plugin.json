@@ -1,6 +1,6 @@
 {
   "name": "issue-flow",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Work GitHub issues through isolated worktrees, reviewed pull requests, and safe merges",
   "author": {
     "name": "c18t",

@@ -1,7 +1,7 @@
 {
   "name": "issue-flow",
   "description": "GitHub issue を起点にしたワークフローのスキルセット。issue を起草してレビューを経て作成し、issue 番号から専用 worktree の作業境界を守って解決・PR 作成・squash merge まで進め、1 本ずつマージできない複数 PR は release ブランチで統合する",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "author": { "name": "c18t" },
   "keywords": ["git", "worktree", "github", "issue", "release", "hooks"]
 }
