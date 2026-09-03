@@ -10,6 +10,7 @@ JSON に書いてある文字列を読み出して、シェル経由でそのま
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -32,6 +33,21 @@ def hook_command():
                 if h.get("type") == "command"]
     assert len(commands) == 1, f"command が 1 つでない: {commands}"
     return commands[0]
+
+
+# ${PLUGIN_ROOT...} の参照 1 つ分。中身は「:-...}」の有無だけを見る
+_PLUGIN_ROOT_REF = re.compile(r"\$\{PLUGIN_ROOT(:-[^}]*\}[^}]*)?\}")
+
+
+def plugin_root_refs_without_fallback(command):
+    """フォールバックを持たない ${PLUGIN_ROOT} の参照を返す。
+
+    部分文字列 "PLUGIN_ROOT" は ${CLAUDE_PLUGIN_ROOT} にも含まれるので、
+    `assertIn` では素の ${PLUGIN_ROOT} を見逃す（#43 が実際にそれで通った）。
+    参照 1 つずつを取り出し、**すべてがフォールバック形か**を見る。
+    """
+    return [m.group(0) for m in _PLUGIN_ROOT_REF.finditer(command)
+            if not m.group(0).startswith("${PLUGIN_ROOT:-")]
 
 
 class TestHookCommandString(unittest.TestCase):
@@ -60,8 +76,8 @@ class TestHookCommandString(unittest.TestCase):
 
     def test_supports_codex_plugin_root(self):
         cmd = hook_command()
-        self.assertIn("PLUGIN_ROOT", cmd)
-        self.assertIn("CLAUDE_PLUGIN_ROOT", cmd)
+        self.assertIn("${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}", cmd)
+        self.assertEqual([], plugin_root_refs_without_fallback(cmd))
 
     def test_matches_claude_and_codex_notion_tool_names(self):
         with open(HOOKS_JSON, encoding="utf-8") as f:
@@ -69,12 +85,22 @@ class TestHookCommandString(unittest.TestCase):
         matcher = hooks["hooks"]["PreToolUse"][0]["matcher"]
         self.assertIn("notion[-_]update[-_]page", matcher)
 
-    def test_windows_command_uses_codex_plugin_root(self):
+    def test_windows_command_falls_back_to_claude_plugin_root(self):
+        """commandWindows も両対応であること（#43）。
+
+        Claude Code は接頭辞なしの PLUGIN_ROOT を設定しないので、
+        ${PLUGIN_ROOT} 単独だと Claude Code on Windows で空に展開され、
+        フックが黙って起動しない（＝センチネルが未展開のまま本文に載る）。
+        部分文字列 "PLUGIN_ROOT" は ${CLAUDE_PLUGIN_ROOT} にも含まれるため、
+        フォールバックの形そのものを見る。
+        """
         with open(HOOKS_JSON, encoding="utf-8") as f:
             hooks = json.load(f)
         handler = hooks["hooks"]["PreToolUse"][0]["hooks"][0]
         command = handler.get("commandWindows", "")
-        self.assertIn("PLUGIN_ROOT", command)
+        self.assertIn("${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}", command)
+        self.assertEqual([], plugin_root_refs_without_fallback(command),
+                         f"フォールバックの無い参照が残っている: {command}")
         self.assertIn("python.cmd", command)
 
 
