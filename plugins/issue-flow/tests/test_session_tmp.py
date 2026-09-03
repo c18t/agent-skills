@@ -21,7 +21,8 @@ class TestSessionTmp(unittest.TestCase):
     def test_prefers_thread_id(self):
         env = {"CODEX_THREAD_ID": "thread-123", "CODEX_SESSION_ID": "session-456"}
         path = session_tmp.session_tmp(self.root, env)
-        self.assertEqual(path, self.root / ".codex" / "tmp" / "thread-123")
+        self.assertEqual(
+            path, self.root.resolve() / ".codex" / "tmp" / "thread-123")
         self.assertTrue(path.is_dir())
 
     def test_falls_back_to_session_id(self):
@@ -32,7 +33,7 @@ class TestSessionTmp(unittest.TestCase):
     def test_rejects_unsafe_ids_and_creates_random_directory(self):
         path = session_tmp.session_tmp(
             self.root, {"CODEX_THREAD_ID": "../outside", "CODEX_SESSION_ID": ""})
-        self.assertEqual(path.parent, self.root / ".codex" / "tmp")
+        self.assertEqual(path.parent, self.root.resolve() / ".codex" / "tmp")
         self.assertTrue(path.name.startswith("session-"))
         self.assertTrue(path.is_dir())
 
