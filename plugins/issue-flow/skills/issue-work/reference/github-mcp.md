@@ -36,6 +36,7 @@ MCP の対応は無い）。リポジトリの clone を作れない環境では
 | issue を編集する | `gh issue edit` | `issue_write`（method: `update`） |
 | issue を閉じる | `gh issue close --comment` | `add_issue_comment` → `issue_write`（method: `update`、`state: closed`） |
 | ブランチを push する | `git push -u origin <ブランチ>` | `create_branch` → `push_files`（下の注意） |
+| ファイル 1 つを作る・更新する | （`git commit` → `git push` に含まれる） | `create_or_update_file`（下の注意） |
 | PR を作る 🛑 | `gh pr create` | `create_pull_request` |
 | PR の状態を見る | `gh pr view --json ...` | `pull_request_read`（method: `get`） |
 | PR のコミットを見る | `gh pr view --json commits` | `pull_request_read`（method: `get_commits`） |
@@ -126,6 +127,10 @@ CI もレビューも通り抜けた。
   無い。`create_branch`（起点はデフォルトブランチ）でリモートに同名ブランチを作り、変更した
   全ファイルを 1 回の `push_files` で積む。`issue-work` は squash merge 前提なので、
   コミット粒度が失われても結果は変わらない
+- **`create_or_update_file` は 3 スキルの手順では使わない。** ブランチに載せる変更は
+  常に `push_files` でまとめて送る（1 回の呼び出しが 1 コミットなので、ファイルごとに
+  分けるとコミットが増えるだけ）。ただし**フックの matcher には入っている**ので、
+  手順の外で単発のファイル更新に使うときも `content` にセンチネルが効く
 - **`push_files` で積んだあとのローカルブランチはリモートと履歴が分かれる。** 以降の修正も
   「ローカルで編集 → 変更ファイルを `push_files`」で通す。リモート履歴との同期を取り直そうと
   しない

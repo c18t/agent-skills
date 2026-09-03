@@ -106,6 +106,22 @@ where the hook does not run.
 - A git repository with a remote (`issue-work`, `release-merge`)
 - `EnterWorktree` needs your approval on first entry, because the worktree lives outside `.claude/worktrees/` (`issue-work`, `release-merge`)
 - Python 3 on `PATH` — any of `python3`, `python`, or `py` (the hook goes through `scripts/python.sh`, which picks the first one that exists). Only the MCP path needs it; the `gh` path never invokes the hook. If none is found the hook exits 2 and blocks the write rather than letting an unexpanded `@@FILE:...@@` reach GitHub
+- A POSIX shell — everything under `scripts/` is invoked as `sh <script>`, and `hooks.json` has no `commandWindows` variant. See [Windows](#windows) below
+
+### Windows
+
+Not supported yet. PowerShell rewrites a leading `sh` to `&`, so no external process starts at all
+(the exit code comes back as an empty string rather than a number), and issue-flow ships no `.cmd`
+wrappers to invoke instead. Two consequences:
+
+- The CI wait in `issue-work` (step 11) and `release-merge` (step 10) cannot use
+  `scripts/watch-pr.sh`. Fall back to polling `gh pr checks` / `gh pr view` by hand, the same way
+  the skills do where `gh` is missing — see
+  [skills/issue-work/reference/ci-watch.md](skills/issue-work/reference/ci-watch.md)
+- The PreToolUse hook does not run, so `@@FILE:` sentinels are not expanded. That is fail-closed on
+  the MCP path — the hook not running means no substitution happens and the raw sentinel would be
+  pushed, which is exactly what the post-`push_files` diff check exists to catch. The `gh` path
+  never invokes the hook and is unaffected
 
 ### Cowork
 

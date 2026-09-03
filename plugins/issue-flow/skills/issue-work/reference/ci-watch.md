@@ -66,3 +66,15 @@ gh pr view <PR番号> --json mergeable,mergeStateStatus
 
 スクリプトが引き受けている 3 つの判断のうち「成功だけを拾わない」はここでも守る。
 「差分だけを出す」「jq の `all`」はポーリングしないので関係しない。
+
+## Windows（PowerShell）では動かない
+
+`gh` があっても `watch-pr.sh` は起動しない。**上の都度確認と同じ扱いにする**
+（`gh` はあるので、コマンドは `gh pr checks` / `gh pr view` をそのまま使う）。
+
+- issue-flow の `scripts/` は **POSIX シェル前提**で、notion-writeback の `python.cmd` に
+  相当するラッパーが無い。`hooks.json` にも `commandWindows` が無い
+- PowerShell は先頭の `sh` を `&` に書き換えるため、**外部プロセスが 1 つも起動しない**。
+  終了コードが数字ですらなく空文字で返るのがその合図（→ #38）
+
+Codex / Windows 対応は**未実装で、既知の制約**。🔴 **回避のためにスクリプトを書き直さない。**

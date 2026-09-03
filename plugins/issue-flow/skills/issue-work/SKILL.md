@@ -195,6 +195,9 @@ sh "${CLAUDE_PLUGIN_ROOT}/scripts/watch-pr.sh" <PR番号>
 [reference/ci-watch.md](reference/ci-watch.md)。
 `gh` が無い環境ではスクリプトも動かないので、ポーリングせず都度確認に倒す
 （同ファイルの「`gh` が無い環境では都度確認に倒す」）。
+❗ **Windows（PowerShell）からも動かない。** `watch-pr.sh` は POSIX シェル前提で、
+issue-flow には `.cmd` ラッパーも `commandWindows` も無い。`gh` が無い環境と同じく
+**都度確認に倒す**（同ファイルの「Windows（PowerShell）では動かない」）。
 
 CI が落ちたら直してコミットし直す。**落ちたままマージへ進まない。**
 
