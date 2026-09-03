@@ -102,8 +102,9 @@ MCP の対応は無い）。リポジトリの clone を作れない環境では
    🔴 **記憶から書かない**
 4. 下の照合を必ず取る
 
-本文ファイルを `.codex/tmp` などへ置く場合は sandbox の writable root を先に確認する。書き込みが
-拒否されたら、書き込み可能な worktree 内へ保存するか、必要な権限を明示して承認を取る。
+Codex では本文ファイルを issue-work が確保した `.codex/tmp/<ID>/` へ置き、sandbox の writable root を
+先に確認する。書き込みが拒否されたら、書き込み可能な worktree 内へ保存するか、必要な権限を明示して
+承認を取る。
 
 ### `push_files` の後は必ず照合する
 

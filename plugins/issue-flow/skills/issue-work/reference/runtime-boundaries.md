@@ -44,6 +44,23 @@ source の一致を確認したあと、plugin-creator の helper で cachebuste
 cachebuster は作業中 worktree の manifest に対して実行する。新しい skill / hook は現在の thread へ
 後付けされたとは見なさず、再インストール後に新しい thread を開いて読み直す。
 
+## thread ごとの一時ディレクトリ
+
+Codex では worktree の絶対パスを `workdir` にして、次を 1 回だけ実行する。
+
+```bash
+sh "<issue-flow-plugin-root>/scripts/python.sh" \
+  "<issue-flow-plugin-root>/scripts/session_tmp.py" --root "<worktree の絶対パス>"
+```
+
+helper は `.codex/tmp/<ID>/` の絶対パスを出力する。ID は `CODEX_THREAD_ID`、
+`CODEX_SESSION_ID` の順に選び、どちらも未設定またはパス要素として不正なら、安全なランダム名の
+directory を作る。返されたパスはその thread 中で固定し、PR 本文、merge 本文、MCP センチネルへ
+渡すファイルをすべてその下に置く。helper を呼び直してランダム fallback を分裂させない。
+
+環境変数は Codex の現行 runtime で観測できるが、安定した公開仕様とは見なさない。そのため
+fallback を外さず、ID を検証せずパスへ連結しない。
+
 ## hook が実際に適用されたか検証する
 
 plugin から Codex UI の `/hooks` に表示される Trusted 状態を直接取得できるとは仮定しない。
@@ -57,6 +74,6 @@ Trusted だけでなく Matcher が**実際のツール名**へ一致するか�
 
 ## sandbox の保存先
 
-`.codex/tmp` などへ本文ファイルを保存するときは、そのパスが現在の sandbox の writable root に
+`.codex/tmp/<ID>/` へ本文ファイルを保存するときは、そのパスが現在の sandbox の writable root に
 含まれるか先に確認する。permission denied や sandbox deny を内容の不具合として扱わず、書き込み可能な
 worktree 内の保存先へ切り替える。権限拡張が必要なら暗黙に回避せず、理由と対象を示して承認を取る。

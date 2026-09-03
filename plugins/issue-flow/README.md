@@ -44,7 +44,7 @@ Given an issue number:
 6. Implements the fix inside the worktree
 7. Runs the project's linters and type checks (`.mise.toml` / `package.json` / `.pre-commit-config.yaml` / `markdownlint-cli2`)
 8. Commits using Conventional Commits (freely, in as many commits as the work needs)
-9. **Writes the PR body into the chat for review — it does not call `gh pr create`** — filled from `.github/pull_request_template.md`, or from the bundled default [skills/issue-work/templates/pull_request.md](skills/issue-work/templates/pull_request.md) when the repository has none
+9. Creates a thread-scoped `.codex/tmp/<id>/` in Codex, then **writes the PR body into the chat for review — it does not call `gh pr create`** — filled from `.github/pull_request_template.md`, or from the bundled default [skills/issue-work/templates/pull_request.md](skills/issue-work/templates/pull_request.md) when the repository has none
 10. Pushes and opens the PR once you approve
 11. Waits for CI via `scripts/watch-pr.sh` under the Monitor tool, then asks for merge approval
     with the squash commit message it intends to use

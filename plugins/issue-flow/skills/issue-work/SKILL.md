@@ -150,6 +150,8 @@ description は小文字始まり・命令形・末尾ピリオドなし）、�
 ### 9. PR の内容をチャットに書き出す 🛑
 
 PR テンプレートを決めて、見出しを埋めた本文をチャットに全文書き出す。`resolves: #<番号>` を忘れない。
+Codex では先に [reference/runtime-boundaries.md](reference/runtime-boundaries.md) の helper を 1 回だけ
+実行し、返された `.codex/tmp/<ID>/` の下へ PR 本文と以降の一時ファイルを保存する。
 
 | リポジトリ側 | 使うテンプレート |
 | --- | --- |
@@ -235,7 +237,8 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 
   MCP 経路は `merge_pull_request`（`merge_method: squash`）。承認されたタイトルは
   `commit_title` に文字列で（**ここでも末尾に半角スペース＋`(#<PR番号>)` を付ける**）、
-  **本文はファイルに保存して `commit_message` に `@@FILE:<相対パス>@@`** を渡す。
+  **本文は手順 9 で確保した一時ディレクトリへ保存して、`commit_message` に
+  `@@FILE:<相対パス>@@`** を渡す。
 
   `--subject` と `--body-file`（MCP なら `commit_title` / `commit_message`）は必ず渡す
   （省くと GitHub が各コミットのメッセージを連結した本文を既定にする）。

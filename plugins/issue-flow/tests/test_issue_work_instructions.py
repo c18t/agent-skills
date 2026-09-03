@@ -32,6 +32,12 @@ class TestCodexWorktreeBoundaryInstructions(unittest.TestCase):
         self.assertIn("git worktree remove --force", self.boundaries)
         self.assertIn("ユーザー所有", self.boundaries)
 
+    def test_temporary_files_are_scoped_to_the_thread(self):
+        self.assertIn("scripts/session_tmp.py", self.boundaries)
+        self.assertIn("CODEX_THREAD_ID", self.boundaries)
+        self.assertIn("CODEX_SESSION_ID", self.boundaries)
+        self.assertIn(".codex/tmp/<ID>/", self.skill)
+
     def test_hook_verification_is_runtime_aware(self):
         for marker in ("Source / Matcher / Trust", "updatedInput",
                        "systemMessage", "今回送った一意な"):
