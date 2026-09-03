@@ -35,9 +35,25 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 `PLUGIN_ROOT` を使う（Codex は互換用の `CLAUDE_PLUGIN_ROOT` も設定する）。
 `python.sh` は `python3` / `python` / `py -3` のうち最初に見つかったもので実行するラッパー。
 **`python3` を直接叩かない**——Windows では `python3` が無いことが多く、環境ごとにコマンド名が違う。
-**Windows（PowerShell）からは `& "${CLAUDE_PLUGIN_ROOT}\scripts\python.cmd"`** を使う
+**Windows（PowerShell）からは `& "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}\scripts\python.cmd"`** を使う
 （`.sh` は直接実行できない。契約も終了コードも `python.sh` と同じ → #38）。
+変数はここでも**両対応の形で書く**——Claude Code は `PLUGIN_ROOT` を設定せず、Codex は
+`PLUGIN_ROOT` を使うので、片方だけを書くともう片方で空に展開される。
 ページは ID でも URL でも指定できる。
+
+### `replace_content` と `insert_content` の使い分け
+
+センチネルはどちらのフィールドにも効く（`replace_content` は `new_str`、`insert_content` は
+`content`）。違うのは**入る場所**だけで、入るものはどちらも**ファイル全文**である。
+
+| ツール | 注入先 | 結果 |
+| --- | --- | --- |
+| `replace_content` | `new_str` | ページ本文を**ファイル全文で差し替える** |
+| `insert_content` | `content` | ページ本文の**後ろにファイル全文を足す** |
+
+📌 **ローカル正本はページ全文なので、それを `insert_content` に渡すとページが重複する。**
+機能の欠陥ではなく用途の取り違えで、**追記したいときの既定も `replace_content`**
+（ローカル正本を追記済みにしてから全文を送る）。正本と照合できる状態を保てるのはこちらだけ。
 
 ### `@@FILE:` のパスの基準
 
@@ -66,7 +82,7 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 ### 1. ローカル正本を用意する
 
 - **1-a** `notion-fetch` でページを取る
-- **1-b** 環境に合うプラグインルートで `scripts/python.sh scripts/notion_mirror.py pull --page <ID or URL> [--out <ローカル正本>]` を実行する。Codex で `--out` を省略した場合は `.codex/tmp/<ページ ID>.md` に作る
+- **1-b** 環境に合うプラグインルートで `scripts/python.sh scripts/notion_mirror.py pull --page <ID or URL> [--out <ローカル正本>]` を実行する。Codex で `--out` を省略した場合は `.codex/tmp/<thread-id>/<ページ ID>.md` に作る。`thread-id` は `CODEX_THREAD_ID`、次に `CODEX_SESSION_ID` を使い、どちらも無い・不正なら安全なランダム directory にする。`pull` の `OK  :` 行に出たパスを以降の `diff` と `@@FILE:` にそのまま使う
 - 🔴 **`pull` を回してよいのは、未書き戻しのローカル編集が無いときだけ。** 編集を積んだ状態で回すと**消える**。
   既にローカル正本があり編集済みなら 1 は飛ばして 2 へ
 - 📌 **Cowork では正本をコンテナ内に置く**（例 `~/notion/<ページ名>.md`）。接続フォルダに置いたままだと
@@ -162,8 +178,6 @@ fetch と `notion_mirror.py` の実行は投げてよい。**境界は「機構�
 - **`This operation would delete N child page(s)`** … 子ページ参照が本文から消えたと解釈された。
   ローカル正本に `<page url="https://app.notion.com/p/<子の ID>">タイトル</page>` の形で持たせる。平文で「子ページ: ○○」と書くと落ちる
 - **`<database>` を含むページ** … fetch で返った `<database>` タグを一字も変えずに含めれば `replace_content` で安全（レコード・ビュー・フィルタが保たれた実測あり）。打ち直すと参照が切れて DB が消えうる
-- **`insert_content` にセンチネル** … 注入されるのは**ファイル全文**なので、追記のつもりで使うと**ページが丸ごと重複する**。
-  センチネルは「全文を差し替える」道具。追記も `replace_content`（ローカル正本を追記済みにしてから全文を送る）
 - **表のセルの中に表の構造タグと同じ字面** … バッククォートで囲んでもパーサが表を打ち切る。日本語で言い換える
 - **素のファイル名・ドメイン様の文字列** … 書き戻すと Notion が保存時に**自動でリンクにする**
   （`notion_mirror.py` → `notion_[mirror.py](http://mirror.py)`）。表のセルに限らず段落中でも起きる。
