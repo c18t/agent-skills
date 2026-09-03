@@ -1,0 +1,23 @@
+{
+  "name": "issue-flow",
+  "version": "0.6.1",
+  "description": "Work GitHub issues through isolated worktrees, reviewed pull requests, and safe merges",
+  "author": {
+    "name": "c18t",
+    "url": "https://github.com/c18t"
+  },
+  "repository": "https://github.com/c18t/agent-skills",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Issue Flow",
+    "shortDescription": "Work GitHub issues safely from draft to merge",
+    "longDescription": "Draft GitHub issues for review, solve them in dedicated worktrees, open pull requests, verify CI, and merge with explicit approval gates.",
+    "developerName": "c18t",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/c18t/agent-skills/tree/main/plugins/issue-flow",
+    "defaultPrompt": [
+      "Start working on this GitHub issue in a dedicated worktree."
+    ]
+  }
+}

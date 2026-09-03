@@ -7,11 +7,12 @@
 手順 12 まで進まなかった場合、worktree は残す。レビュー対応や作業の再開がそこで続くため。
 `*.code-workspace` の記載もそのまま残す（消すのは worktree を実際に削除するときだけ）。
 
-ユーザーが「戻って」と言ったときは `ExitWorktree` に `action: "keep"` を渡す。
-worktree のディレクトリは残るので、`EnterWorktree` に同じ `path` を渡せば再び入れる。
+ユーザーが「戻って」と言ったときは `ExitWorktree` があれば `action: "keep"` を渡す。
+worktree のディレクトリは残るので、`EnterWorktree` に同じ `path` を渡せば再び入れる。Codex では
+移動操作をせず、再開時も絶対 `workdir` と preflight を使う。
 
-`action: "remove"` は使わない。このスキルの worktree はメインの外に `git worktree add` で
-作ったものなので `ExitWorktree` の管理外にあり、削除は `git worktree remove` で行う（手順 12-c）。
+`action: "remove"` は使わない。このスキルの worktree は手動の `git worktree add` で作るため
+`ExitWorktree` の管理外にあり、削除は `git worktree remove` で行う（手順 12-c）。
 
 ## worktree の作成・移動まわり
 
@@ -21,8 +22,9 @@ worktree のディレクトリは残るので、`EnterWorktree` に同じ `path`
   `git worktree list` で確認し、再利用するか、ユーザーに確認してから片付ける。**黙って消さない**
 - **ブランチが既に別の worktree で checkout 済み** … `git worktree add <パス> <ブランチ>` は
   同じブランチを二重に checkout できない。既存の worktree のパスへ `EnterWorktree` で入る
-- **`cd` で代用する** … cwd は動くが、書き込み権限・`CLAUDE.md`・設定はメイン側のまま。
-  移動せずに編集すると変更がメイン側に積まれ、切ったブランチは空のまま残る。必ず `EnterWorktree` を使う
+- **`cd` で代用する** … Claude Code では cwd は動いても書き込み権限・`CLAUDE.md`・設定はメイン側の
+  ままなので `EnterWorktree` を使う。Codex では `cd` の持続を仮定せず、すべての操作へ絶対
+  `workdir` を指定し、`pwd` / top-level / branch の preflight を行う
 - **移動後にメイン側のファイルを編集しようとする** … ハーネスが弾く。これは事故の防止であって
   不具合ではない。メイン側を触る必要が本当にあるなら、何をなぜ触るのかユーザーに確認する
 - **`*.code-workspace` の編集がハーネスに弾かれる** … このファイルはメインチェックアウト側にある。
@@ -73,7 +75,10 @@ worktree のディレクトリは残るので、`EnterWorktree` に同じ `path`
 - **`git worktree remove` が拒む** … 未コミットの変更が残っている。
   `--force` を付けずに止まり、内容をユーザーに伝える
 - **worktree の中から `git worktree remove` を実行する** … 自分がいるディレクトリは消せない。
-  手順 12-a の `ExitWorktree` で先にメイン側へ戻る
+  手順 12-a の `ExitWorktree` で先にメイン側へ戻る。Codex では main checkout の絶対パスを
+  `workdir` に指定する
+- **cleanup 時に未追跡ファイルがある** … ユーザー所有として残し、`--force` や手動削除を使わず止まる。
+  main と worktree の両方で `git status --short` を取り、対象を混同しない
 - **`git branch -d` が「マージされていない」と拒む** … squash merge は元のコミットとは別の
   新しいコミットを作るため、`-d` は拒む。12-b のマージ成功を確認したうえで `-D` を使う
 - **`git push origin --delete` が「remote ref does not exist」で失敗する** … リポジトリが

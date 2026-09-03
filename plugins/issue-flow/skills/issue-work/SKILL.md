@@ -1,13 +1,13 @@
 ---
 name: issue-work
-description: "GitHub issue 番号を受け取り、専用の worktree を作ってセッションごと移動し、そこで issue を解決して PR を出し、承認を得てから squash merge して worktree を片付ける。issue に着手する・issue の対応を始める・issue 用のブランチを切る・worktree を作って作業する、と言われたときに使う。"
+description: "GitHub issue 番号を受け取り、専用 worktree の作業境界を守りながら issue を解決して PR を出し、承認を得てから squash merge と片付けまで行う。issue に着手する・issue の対応を始める・issue 用のブランチを切る・worktree を作って作業する、と言われたときに使う。"
 ---
 
 # issue から worktree を作って解決する
 
 引数は issue 番号（`123` でも `#123` でも可）。
 
-issue を読み、専用の worktree を作ってセッションごと移動し、その中で実装・検証・コミットまで進めて、
+issue を読み、専用の worktree を作って作業境界を固定し、その中で実装・検証・コミットまで進めて、
 PR 本文をユーザーにレビューしてもらってから PR を作る。
 マージの承認を得たら squash merge し、worktree を片付ける。
 
@@ -20,6 +20,10 @@ GitHub の読み書きは `gh` CLI か GitHub MCP のどちらかで行う。着
 
 うまくいかないときは [reference/troubleshooting.md](reference/troubleshooting.md) を見る。
 途中で止めるときの扱いも同じファイルにある。
+
+実行環境に `EnterWorktree` / `ExitWorktree` が無い場合は Codex として扱い、最初に
+[reference/runtime-boundaries.md](reference/runtime-boundaries.md) を読む。Codex ではチャットの cwd や
+ツール隔離が移動したとは見なさず、同ファイルの preflight と絶対 `workdir` で境界を守る。
 
 ## 手順
 
@@ -44,12 +48,11 @@ issue が存在しない・権限が無い等で失敗したら**そこで止ま
 ブランチ名は [Conventional Branch](https://conventionalbranch.org/) に従う。
 
 - ブランチ名 … `<接頭辞>/<番号>-<英語スラッグ>`（例 `feature/123-add-login-form`）
-- worktree パス … `../<リポジトリ名>-<ブランチ名のスラッシュをハイフンに置換>`
-  （例 `../agent-skills-feature-123-add-login-form`）
+- worktree パス … `<リポジトリルート>/.claude/worktrees/<ブランチ名のスラッシュをハイフンに置換>`
+  （例 `.claude/worktrees/feature-123-add-login-form`）
 
-```bash
-basename "$(git rev-parse --show-toplevel)"
-```
+`.claude/worktrees/` はリポジトリの `.gitignore` に一度だけ登録しておく。未登録なら今回の
+ブランチで追加する。worktree ごとの main への一時変更で隠さない。
 
 接頭辞は **issue のラベルを起点に**選ぶ。
 
@@ -100,7 +103,7 @@ git show-ref --verify --quiet "refs/heads/<ブランチ名>" && echo exists || e
     { "name": "main", "path": "." },
     {
       "name": "feature/123-add-login-form",
-      "path": "../agent-skills-feature-123-add-login-form"
+      "path": ".claude/worktrees/feature-123-add-login-form"
     }
   ]
 }
@@ -111,11 +114,12 @@ git show-ref --verify --quiet "refs/heads/<ブランチ名>" && echo exists || e
 
 ### 5. worktree へ移動する
 
-`EnterWorktree` ツールに `path: "<パス>"` を渡してセッションを移す。
-初回は承認プロンプトが出るので待つ。移動できたことを `pwd` で確かめてから次へ進む。
+`EnterWorktree` があれば `path: "<絶対パス>"` を渡してセッションを移す。
+`.claude/worktrees/` 配下なら通常は承認プロンプトなしで入れる。移動できたことを `pwd` で確かめる。
 
-`git worktree add` はディレクトリを作るだけでセッションは動かない。**`cd` では代用にならない。**
-移動後は Edit / Write / Bash がこの worktree の中だけで通る。
+`EnterWorktree` が無い Codex では移動を装わず、worktree の絶対パスをユーザーに示す。以降の
+Git・テスト・ファイル操作はすべてその絶対パスを `workdir` に指定し、各操作前の preflight を行う。
+具体的な検査と停止条件は [reference/runtime-boundaries.md](reference/runtime-boundaries.md)。
 
 ### 6. issue を解決する
 
@@ -212,7 +216,8 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 
 - **12-a** worktree を出る
 
-  `ExitWorktree` ツールに `action: "keep"` を渡す（`remove` は使わない。実際に消すのは 12-c）。
+  `ExitWorktree` があれば `action: "keep"` を渡す（`remove` は使わない。実際に消すのは 12-c）。
+  Codex では移動操作をせず、以降のコマンドにメイン checkout の絶対パスを `workdir` として指定する。
 
   🔴 **マージより先に出る。** worktree の中から `gh pr merge` を実行すると、マージは
   成功するのに `gh` のローカル後処理が失敗して非ゼロ終了する。
@@ -240,6 +245,9 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
   失敗したときは、再実行の前に `gh pr view <PR番号> --json state,mergedAt` でマージ済みか確かめる。
 
 - **12-c** worktree とローカルブランチを片付ける
+
+  先に worktree と main の両方で `git status --short` を確認する。未コミット変更やユーザー所有の
+  未追跡ファイルがあれば削除せず止まる。Codex では全コマンドを main checkout の `workdir` で行う。
 
   ```bash
   git worktree remove <パス>
@@ -275,4 +283,5 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 | [reference/rename-branch.md](reference/rename-branch.md) | 作業途中でブランチ名を変える手順 |
 | [reference/ci-watch.md](reference/ci-watch.md) | CI 監視の制約と `watch-pr.sh` が担う判断、`gh` が無い環境での都度確認 |
 | [reference/github-mcp.md](reference/github-mcp.md) | 経路の判定と、gh ↔ GitHub MCP の対応表 |
+| [reference/runtime-boundaries.md](reference/runtime-boundaries.md) | Codex の workdir 境界、plugin cache、hook・sandbox 検証 |
 | [templates/pull_request.md](templates/pull_request.md) | リポジトリに PR テンプレートが無いときの既定 |
