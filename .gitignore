@@ -279,3 +279,6 @@ $RECYCLE.BIN/
 
 # Codex local Notion writeback sources
 .codex/tmp/
+
+# Local issue worktrees (created by issue-work)
+.claude/worktrees/

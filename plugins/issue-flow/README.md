@@ -37,25 +37,25 @@ Issue and PR numbers are assigned at creation, so the body is written without th
 Given an issue number:
 
 1. `gh issue view` — reads the issue in full (the content is what the implementation step works from)
-2. Derives a [Conventional Branch](https://conventionalbranch.org/) name `<prefix>/<number>-<english-slug>` — the prefix (`feature` / `bugfix` / `hotfix` / `release` / `chore`) is chosen from the issue's labels — and a sibling worktree path `../<repo>-<branch-slug>`
+2. Derives a [Conventional Branch](https://conventionalbranch.org/) name `<prefix>/<number>-<english-slug>` — the prefix (`feature` / `bugfix` / `hotfix` / `release` / `chore`) is chosen from the issue's labels — and a worktree path `.claude/worktrees/<branch-slug>`
 3. `git worktree add`
 4. Registers the worktree in `folders` of the repo's `*.code-workspace` — named after the branch, so VSCode shows which worktree is which — creating `<repo>.code-workspace` if none exists
-5. **`EnterWorktree`** to move the session in
+5. Uses **`EnterWorktree`** when available; in Codex it fixes the absolute `workdir` and runs a root/branch preflight before every operation
 6. Implements the fix inside the worktree
 7. Runs the project's linters and type checks (`.mise.toml` / `package.json` / `.pre-commit-config.yaml` / `markdownlint-cli2`)
 8. Commits using Conventional Commits (freely, in as many commits as the work needs)
-9. **Writes the PR body into the chat for review — it does not call `gh pr create`** — filled from `.github/pull_request_template.md`, or from the bundled default [skills/issue-work/templates/pull_request.md](skills/issue-work/templates/pull_request.md) when the repository has none
+9. Creates a thread-scoped `.codex/tmp/<id>/` in Codex, then **writes the PR body into the chat for review — it does not call `gh pr create`** — filled from `.github/pull_request_template.md`, or from the bundled default [skills/issue-work/templates/pull_request.md](skills/issue-work/templates/pull_request.md) when the repository has none
 10. Pushes and opens the PR once you approve
 11. Waits for CI via `scripts/watch-pr.sh` under the Monitor tool, then asks for merge approval
     with the squash commit message it intends to use
-12. Squash-merges with `--subject`/`--body-file`, leaves the worktree, removes it, and drops its `folders` entry
+12. Squash-merges with `--subject`/`--body-file` from the main checkout, verifies both trees are safe to clean, removes the worktree, and drops its `folders` entry
 
 Step 12 passes an explicit subject and body because GitHub otherwise defaults the squash commit
 body to every branch commit message concatenated, which then has to be edited in the web UI.
 
-The `*.code-workspace` edits sit on either side of the move on purpose: that file lives in the main
-checkout, which the harness makes read-only for the session while it is inside the worktree. So the
-entry is added before `EnterWorktree` (step 4) and removed after `ExitWorktree` (step 12).
+The `*.code-workspace` edits sit on either side of the worktree phase on purpose: that file lives in
+the main checkout. With session-move tools the entry is added before `EnterWorktree` and removed after
+`ExitWorktree`; Codex instead targets the main checkout explicitly with `workdir` for cleanup.
 
 ### `release-merge` — integrating the ones that collide
 
@@ -142,6 +142,6 @@ See [skills/issue-draft/SKILL.md](skills/issue-draft/SKILL.md),
 - Merging is gated on an explicit go-ahead every time. CI passing is not treated as approval, and neither is the review of the PR body (step 9 in `issue-work`, step 9 in `release-merge`)
 - `release-merge` gates once more, before anything is created: the PR list, merge order, branch name, and version go to review at step 2, because a release branch named wrong is only cheap to fix before it is pushed
 - The worktree is removed only as part of a completed merge (step 12). If the run stops earlier, it is kept so the work can be resumed by entering the same path again
-- Because the worktree is created outside `.claude/worktrees/`, `ExitWorktree` will not delete it — removal is an explicit `git worktree remove`
+- The worktree is created manually under `.claude/worktrees/`, so cleanup remains an explicit `git worktree remove`; Claude Code's sweeper leaves manually created worktrees alone
 - The merge method is not interchangeable and neither skill falls back. `issue-work` squashes; `release-merge` uses a merge commit in **both** directions, because a squash rewrites the head SHA and the included PRs then never register as merged. If the repository has the required method disabled, the skill reports it and stops
 - Renaming a branch mid-run is a rename, not a re-cut: `git branch -m`, then `git worktree move` after leaving the worktree, then the matching `folders` entry. `mv` would leave the worktree's git metadata pointing at the old path

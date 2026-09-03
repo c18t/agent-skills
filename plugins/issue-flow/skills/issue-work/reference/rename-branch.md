@@ -12,7 +12,8 @@
    git branch -m <新しいブランチ名>
    ```
 
-2. `ExitWorktree` に `action: "keep"` を渡してメイン側へ戻る
+2. `ExitWorktree` があれば `action: "keep"` を渡してメイン側へ戻る。Codex では以降の操作に
+   main checkout の絶対パスを `workdir` として指定する
 
    **滞在中のディレクトリは動かせない**ため、次の `git worktree move` より先に出る。
 
@@ -31,4 +32,5 @@
    メインチェックアウト側にあり、worktree 滞在中はハーネスが編集を弾く）。
    JSONC なので **Edit で該当行だけを直す。**
 
-5. `EnterWorktree` に**新しいパス**を渡して入り直す
+5. `EnterWorktree` があれば**新しいパス**を渡して入り直す。Codex では新しい絶対 `workdir` を使い、
+   `pwd` / top-level / branch の preflight をやり直す
