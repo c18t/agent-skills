@@ -9,8 +9,8 @@ jobs:
   validate-manifests:
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install Claude Code CLI
@@ -37,8 +37,8 @@ jobs:
         os: [ubuntu-slim, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       # プラグインごとに discover する。パスを 1 つ決め打ちにすると、
@@ -60,8 +60,8 @@ jobs:
   markdownlint:
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Run markdownlint-cli2
