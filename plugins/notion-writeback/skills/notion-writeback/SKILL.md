@@ -66,7 +66,7 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 ### 1. ローカル正本を用意する
 
 - **1-a** `notion-fetch` でページを取る
-- **1-b** 環境に合うプラグインルートで `scripts/python.sh scripts/notion_mirror.py pull --page <ID or URL> [--out <ローカル正本>]` を実行する。Codex で `--out` を省略した場合は `.codex/tmp/<ページ ID>.md` に作る
+- **1-b** 環境に合うプラグインルートで `scripts/python.sh scripts/notion_mirror.py pull --page <ID or URL> [--out <ローカル正本>]` を実行する。Codex で `--out` を省略した場合は `.codex/tmp/<thread-id>/<ページ ID>.md` に作る。`thread-id` は `CODEX_THREAD_ID`、次に `CODEX_SESSION_ID` を使い、どちらも無い・不正なら安全なランダム directory にする。`pull` の `OK  :` 行に出たパスを以降の `diff` と `@@FILE:` にそのまま使う
 - 🔴 **`pull` を回してよいのは、未書き戻しのローカル編集が無いときだけ。** 編集を積んだ状態で回すと**消える**。
   既にローカル正本があり編集済みなら 1 は飛ばして 2 へ
 - 📌 **Cowork では正本をコンテナ内に置く**（例 `~/notion/<ページ名>.md`）。接続フォルダに置いたままだと

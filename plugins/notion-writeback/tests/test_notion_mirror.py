@@ -28,6 +28,7 @@ in-process では観測できないもの——だからで、そこは #31 の�
 出力ファイルの**先頭の印**で報告する語を決めるので、「どの経路でも印つきの 1 行が出る」
 「exit 1 は DIRTY / STALE だけ」が崩れると、空を CLEAN と読む事故に戻る。
 """
+import argparse
 import contextlib
 import io
 import json
@@ -334,6 +335,79 @@ class TestCodexTranscriptDiscovery(unittest.TestCase):
             fh.write(json.dumps(result, ensure_ascii=False) + "\n")
         found = notion_mirror.harvest(notion_mirror.Path(transcript))
         self.assertEqual(found[page_id][1], "Codex の本文")
+
+
+class TestCodexMirrorPath(unittest.TestCase):
+    PAGE = "0" * 32
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = self._tmp.name
+        self.old_env = dict(os.environ)
+        self.addCleanup(self._restore_env)
+        for name in ("CODEX_HOME", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+            os.environ.pop(name, None)
+
+    def _restore_env(self):
+        os.environ.clear()
+        os.environ.update(self.old_env)
+
+    def test_thread_id_separates_mirrors_and_beats_session_id(self):
+        os.environ["CODEX_HOME"] = "/tmp/codex"
+        os.environ["CODEX_SESSION_ID"] = "session-1"
+        os.environ["CODEX_THREAD_ID"] = "thread-1"
+        first = notion_mirror.default_mirror_path(self.PAGE)
+        os.environ["CODEX_THREAD_ID"] = "thread-2"
+        second = notion_mirror.default_mirror_path(self.PAGE)
+        self.assertEqual(first, notion_mirror.Path(".codex/tmp/thread-1/") / f"{self.PAGE}.md")
+        self.assertEqual(second, notion_mirror.Path(".codex/tmp/thread-2/") / f"{self.PAGE}.md")
+        self.assertNotEqual(first, second)
+
+    def test_session_id_is_used_when_thread_id_is_absent(self):
+        os.environ["CODEX_HOME"] = "/tmp/codex"
+        os.environ["CODEX_SESSION_ID"] = "session-1"
+        self.assertEqual(
+            notion_mirror.default_mirror_path(self.PAGE),
+            notion_mirror.Path(".codex/tmp/session-1/") / f"{self.PAGE}.md")
+
+    def test_invalid_identifier_uses_safe_random_fallback(self):
+        os.environ["CODEX_HOME"] = "/tmp/codex"
+        os.environ["CODEX_THREAD_ID"] = "../../unsafe"
+        os.environ["CODEX_SESSION_ID"] = "."
+        directory = notion_mirror.default_mirror_path(self.PAGE).parent.name
+        self.assertRegex(directory, r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+        self.assertNotIn("unsafe", directory)
+
+    def test_codex_fallback_without_identifiers_is_safe_random_directory(self):
+        os.environ["CODEX_HOME"] = "/tmp/codex"
+        directory = notion_mirror.default_mirror_path(self.PAGE).parent.name
+        self.assertRegex(directory, r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+    def test_non_codex_default_path_is_unchanged(self):
+        self.assertEqual(
+            notion_mirror.default_mirror_path(self.PAGE),
+            notion_mirror.Path(".codex/tmp") / f"{self.PAGE}.md")
+
+    def test_pull_reports_and_writes_the_thread_mirror_by_default(self):
+        transcript = os.path.join(self.tmp, "session.jsonl")
+        result = {"text": f'<page url="https://app.notion.com/p/{self.PAGE}">\n'
+                          "<content>Notion の本文</content>\n</page>"}
+        with io.open(transcript, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(result, ensure_ascii=False) + "\n")
+        os.environ["CODEX_HOME"] = "/tmp/codex"
+        os.environ["CODEX_THREAD_ID"] = "thread-1"
+        previous_cwd = os.getcwd()
+        self.addCleanup(os.chdir, previous_cwd)
+        os.chdir(self.tmp)
+        args = argparse.Namespace(page=self.PAGE, transcript=notion_mirror.Path(transcript), out=None)
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            self.assertEqual(notion_mirror.cmd_pull(args), 0)
+        output = stdout.getvalue()
+        relative = notion_mirror.Path(".codex/tmp/thread-1") / f"{self.PAGE}.md"
+        self.assertIn(str(relative), output)
+        self.assertEqual((notion_mirror.Path(self.tmp) / relative).read_text(encoding="utf-8"),
+                         "Notion の本文\n")
 
 
 class CliContractTestCase(unittest.TestCase):

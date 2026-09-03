@@ -1,6 +1,6 @@
 {
   "name": "notion-writeback",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Safely write local files back to Notion through MCP without model transcription",
   "author": {
     "name": "c18t",
