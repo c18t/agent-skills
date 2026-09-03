@@ -3,7 +3,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__.*notion-update-page",
+        "matcher": "mcp__.*notion[-_]update[-_]page",
         "hooks": [
           {
             "type": "command",

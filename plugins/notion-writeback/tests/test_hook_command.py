@@ -63,6 +63,12 @@ class TestHookCommandString(unittest.TestCase):
         self.assertIn("PLUGIN_ROOT", cmd)
         self.assertIn("CLAUDE_PLUGIN_ROOT", cmd)
 
+    def test_matches_claude_and_codex_notion_tool_names(self):
+        with open(HOOKS_JSON, encoding="utf-8") as f:
+            hooks = json.load(f)
+        matcher = hooks["hooks"]["PreToolUse"][0]["matcher"]
+        self.assertIn("notion[-_]update[-_]page", matcher)
+
     def test_windows_command_uses_codex_plugin_root(self):
         with open(HOOKS_JSON, encoding="utf-8") as f:
             hooks = json.load(f)

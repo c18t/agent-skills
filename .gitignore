@@ -276,3 +276,6 @@ $RECYCLE.BIN/
 
 # VSCode workspace files (worktree entries are environment-specific; issue-work generates them)
 *.code-workspace
+
+# Codex local Notion writeback sources
+.codex/tmp/

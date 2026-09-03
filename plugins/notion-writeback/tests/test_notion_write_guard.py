@@ -95,6 +95,18 @@ class TestSentinelInjection(GuardTestCase):
         expected["new_str"] = EMOJI_TEXT
         self.assertEqual(updated, expected)
 
+    def test_injects_file_for_codex_mcp_tool_name(self):
+        self.write_file(os.path.join("docs", "page.md"), EMOJI_TEXT)
+        ti = {
+            "command": "replace_content",
+            "page_id": PAGE_ID,
+            "new_str": "@@FILE:docs/page.md@@",
+        }
+        proc, result = self.run_guard(ti, tool_name="mcp__notion__notion_update_page")
+        self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8", "replace"))
+        self.assertEqual(
+            result["hookSpecificOutput"]["updatedInput"]["new_str"], EMOJI_TEXT)
+
     def test_outside_project_is_denied(self):
         with open(os.path.join(os.path.dirname(self.root), "outside.md"),
                   "w", encoding="utf-8") as f:

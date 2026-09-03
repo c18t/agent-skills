@@ -338,7 +338,7 @@ def cmd_pull(args) -> int:
         print("  探索したトランスクリプト: " + ", ".join(p.name for p in chain))
         return 1
     origin, content = hit
-    out = Path(args.out)
+    out = Path(args.out) if args.out else Path(".codex") / "tmp" / f"{page_id}.md"
     old = len(out.read_text(encoding="utf-8")) if out.exists() else 0
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content + "\n", encoding="utf-8")
@@ -372,7 +372,11 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("pull", help="fetch 結果をローカル正本へ書き出す")
     p.add_argument("--page", required=True, help="ページ ID または URL")
-    p.add_argument("--out", required=True, help="書き出し先ファイル")
+    p.add_argument(
+        "--out",
+        default=None,
+        help="書き出し先ファイル（省略時は .codex/tmp/<page-id>.md）",
+    )
     p.set_defaults(func=cmd_pull)
     d = sub.add_parser("diff", help="ローカル正本と fetch 結果を照合する")
     d.add_argument("--page", required=True, help="ページ ID または URL")

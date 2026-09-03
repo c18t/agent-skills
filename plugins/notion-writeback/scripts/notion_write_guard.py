@@ -88,7 +88,8 @@ def main():
         sys.exit(0)  # 入力が読めないときは素通し（フェイルオープン）
 
     tool = data.get("tool_name") or ""
-    if "notion-update-page" not in tool:
+    # Claude Code はハイフン、Codex の MCP surface はアンダースコアで渡す。
+    if "notion-update-page" not in tool and "notion_update_page" not in tool:
         sys.exit(0)
     ti = data.get("tool_input") or {}
     cmd = ti.get("command")
