@@ -71,6 +71,7 @@ import argparse
 import json
 import os
 import re
+import secrets
 import sys
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -80,6 +81,7 @@ CONTENT_RE = re.compile(r"<content>\n?(.*?)\n?</content>", re.S)
 FIRST_PAGE_RE = re.compile(r'<page url="https://app\.notion\.com/p/([0-9a-f]{32})"')
 FIRST_PAGE_ESC_RE = re.compile(r'<page url=\\"https://app\.notion\.com/p/([0-9a-f]{32})\\"')
 PAGE_ID_RE = re.compile(r"[0-9a-f]{32}")
+SAFE_SESSION_COMPONENT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
 
 
 # --- 失敗の出し方 --------------------------------------------------------------
@@ -120,6 +122,32 @@ def codex_transcript() -> Optional[Path]:
         return None
     candidates = list((root / "sessions").glob(f"**/*{session_id}.jsonl"))
     return candidates[0] if len(candidates) == 1 else None
+
+
+def codex_session_directory() -> str:
+    """Codex のローカル正本を分ける安全なディレクトリ名を返す。
+
+    thread ID は resume 後も同じ会話の正本を使えるので session ID より優先する。
+    どちらも無い場合は、環境値をパスへ流し込まずランダムな名前へ倒す。
+    """
+    for name in ("CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+        value = os.environ.get(name, "")
+        if SAFE_SESSION_COMPONENT_RE.fullmatch(value):
+            return value
+    return secrets.token_urlsafe(18)
+
+
+def default_mirror_path(page_id: str) -> Path:
+    """--out 省略時のローカル正本パス。
+
+    Codex は thread ごとに隔離する。Codex を示す環境値が無い既存ランタイムは、
+    互換性のため従来の保存先を維持する。
+    """
+    if any(os.environ.get(name) for name in
+           ("CODEX_HOME", "CODEX_THREAD_ID", "CODEX_SESSION_ID")):
+        return Path(".codex") / "tmp" / codex_session_directory() / f"{page_id}.md"
+    return Path(".codex") / "tmp" / f"{page_id}.md"
+
 
 def project_dir(cwd: str = None) -> Path:
     """Claude Code のトランスクリプト置き場。環境変数 NOTION_MIRROR_PROJECT_DIR で上書き可。
@@ -338,7 +366,7 @@ def cmd_pull(args) -> int:
         print("  探索したトランスクリプト: " + ", ".join(p.name for p in chain))
         return 1
     origin, content = hit
-    out = Path(args.out) if args.out else Path(".codex") / "tmp" / f"{page_id}.md"
+    out = Path(args.out) if args.out else default_mirror_path(page_id)
     old = len(out.read_text(encoding="utf-8")) if out.exists() else 0
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content + "\n", encoding="utf-8")
@@ -375,7 +403,7 @@ def main(argv=None) -> int:
     p.add_argument(
         "--out",
         default=None,
-        help="書き出し先ファイル（省略時は .codex/tmp/<page-id>.md）",
+        help="書き出し先ファイル（Codex で省略時は .codex/tmp/<thread-id>/<page-id>.md）",
     )
     p.set_defaults(func=cmd_pull)
     d = sub.add_parser("diff", help="ローカル正本と fetch 結果を照合する")
