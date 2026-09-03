@@ -74,6 +74,7 @@ import re
 import sys
 from difflib import SequenceMatcher
 from pathlib import Path
+from typing import Optional
 
 CONTENT_RE = re.compile(r"<content>\n?(.*?)\n?</content>", re.S)
 FIRST_PAGE_RE = re.compile(r'<page url="https://app\.notion\.com/p/([0-9a-f]{32})"')
@@ -105,6 +106,20 @@ def normalize_page_id(value: str):
 
 
 # --- トランスクリプトの所在 ----------------------------------------------------
+
+def codex_transcript() -> Optional[Path]:
+    """Codex の現在の rollout をセッション ID から特定する。
+
+    `transcript_path` が使える呼び出し元は --transcript / 環境変数で明示するのが第一選択。
+    通常コマンドでは、Codex がプロセスへ渡すセッション ID と一致する rollout だけを選ぶ。
+    ID やファイルが見つからない、または複数一致する場合は推測せず None を返す。
+    """
+    root = Path(os.environ.get("CODEX_HOME") or (Path.home() / ".codex"))
+    session_id = os.environ.get("CODEX_SESSION_ID") or os.environ.get("CODEX_THREAD_ID")
+    if not session_id or not re.fullmatch(r"[0-9a-f-]+", session_id):
+        return None
+    candidates = list((root / "sessions").glob(f"**/*{session_id}.jsonl"))
+    return candidates[0] if len(candidates) == 1 else None
 
 def project_dir(cwd: str = None) -> Path:
     """Claude Code のトランスクリプト置き場。環境変数 NOTION_MIRROR_PROJECT_DIR で上書き可。
@@ -233,7 +248,12 @@ def harvest_session(transcript: Path = None, cwd: str = None) -> tuple:
     返り値は (found, chain)。found は {page_id: (出所, 本文)}。
     退避ファイル → 本体 → サブエージェント の順に入れ、後から入ったものが勝つ。
     """
-    base = transcript or session_transcript(project_dir(cwd))
+    explicit = os.environ.get("NOTION_MIRROR_TRANSCRIPT")
+    base = transcript or (Path(explicit) if explicit else None) or codex_transcript()
+    if base is None:
+        base = session_transcript(project_dir(cwd))
+    if not base.is_file():
+        _die(f"トランスクリプトが見つからない: {base}")
     session_dir = base.parent / base.stem
     found = dict(harvest_tool_results(session_dir))
     chain = transcript_chain(base)
@@ -318,7 +338,7 @@ def cmd_pull(args) -> int:
         print("  探索したトランスクリプト: " + ", ".join(p.name for p in chain))
         return 1
     origin, content = hit
-    out = Path(args.out)
+    out = Path(args.out) if args.out else Path(".codex") / "tmp" / f"{page_id}.md"
     old = len(out.read_text(encoding="utf-8")) if out.exists() else 0
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content + "\n", encoding="utf-8")
@@ -348,11 +368,15 @@ def cmd_diff(args) -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--transcript", type=Path, default=None,
-                    help="本体トランスクリプト（省略時は CLAUDE_CODE_SESSION_ID / 最新）")
+                    help="本体トランスクリプト（省略時は Codex のセッション ID / CLAUDE_CODE_SESSION_ID / 最新）")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("pull", help="fetch 結果をローカル正本へ書き出す")
     p.add_argument("--page", required=True, help="ページ ID または URL")
-    p.add_argument("--out", required=True, help="書き出し先ファイル")
+    p.add_argument(
+        "--out",
+        default=None,
+        help="書き出し先ファイル（省略時は .codex/tmp/<page-id>.md）",
+    )
     p.set_defaults(func=cmd_pull)
     d = sub.add_parser("diff", help="ローカル正本と fetch 結果を照合する")
     d.add_argument("--page", required=True, help="ページ ID または URL")

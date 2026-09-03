@@ -21,7 +21,7 @@ notion-update-page の呼び出しを実行前に検査する。目的は 4 つ�
    **fetch は減らずに増えた**。
 
 方針：判定できないときは素通し（フェイルオープン）。フックの故障で書き込みを止めない。
-状態：<tmpdir>/claude-notion-guard/<session_id>.json にページ別の update_content 回数を持つ。
+状態：<tmpdir>/notion-writeback-guard/<session_id>.json にページ別の update_content 回数を持つ。
 """
 import json
 import os
@@ -30,7 +30,7 @@ import sys
 import tempfile
 
 UPDATE_LIMIT = 3  # 1 ページ・1 セッションあたりの update_content 呼び出し上限
-STATE_DIR = os.path.join(tempfile.gettempdir(), "claude-notion-guard")
+STATE_DIR = os.path.join(tempfile.gettempdir(), "notion-writeback-guard")
 SENTINEL = re.compile(r"\s*@@FILE:(.+?)@@\s*", re.DOTALL)
 PAGE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 
@@ -88,7 +88,8 @@ def main():
         sys.exit(0)  # 入力が読めないときは素通し（フェイルオープン）
 
     tool = data.get("tool_name") or ""
-    if "notion-update-page" not in tool:
+    # Claude Code はハイフン、Codex の MCP surface はアンダースコアで渡す。
+    if "notion-update-page" not in tool and "notion_update_page" not in tool:
         sys.exit(0)
     ti = data.get("tool_input") or {}
     cmd = ti.get("command")
@@ -139,6 +140,9 @@ def main():
                 ),
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
+                    # Codex は updatedInput と allow の併記を必須とする。
+                    # Claude Code はこのフィールドを解釈できるため、同じ出力を共用できる。
+                    "permissionDecision": "allow",
                     "updatedInput": new_input,
                 },
             })

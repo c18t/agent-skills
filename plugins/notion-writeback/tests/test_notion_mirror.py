@@ -269,6 +269,73 @@ class CompareLabelTestCase(unittest.TestCase):
         self.assertEqual(notion_mirror.DIFF_LABELS["replace"], "⚠️食い違い")
 
 
+class TestCodexTranscriptDiscovery(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.codex_home = self._tmp.name
+        self.old_env = dict(os.environ)
+        self.addCleanup(self._restore_env)
+        os.environ["CODEX_HOME"] = self.codex_home
+        os.environ.pop("CODEX_THREAD_ID", None)
+        os.environ.pop("CODEX_SESSION_ID", None)
+
+    def _restore_env(self):
+        os.environ.clear()
+        os.environ.update(self.old_env)
+
+    def test_finds_only_the_rollout_for_the_current_session(self):
+        session_id = "01a065d6-4c81-7731-9bcd-7de2f206757d"
+        os.environ["CODEX_SESSION_ID"] = session_id
+        sessions = os.path.join(self.codex_home, "sessions", "2026", "09", "03")
+        os.makedirs(sessions)
+        expected = os.path.join(sessions, f"rollout-2026-09-03T00-00-00-{session_id}.jsonl")
+        with io.open(expected, "w", encoding="utf-8") as fh:
+            fh.write("{}\n")
+        with io.open(os.path.join(sessions, "rollout-other.jsonl"), "w", encoding="utf-8") as fh:
+            fh.write("{}\n")
+        self.assertEqual(notion_mirror.codex_transcript(), notion_mirror.Path(expected))
+
+    def test_ambiguous_matches_fail_closed(self):
+        session_id = "01a065d6-4c81-7731-9bcd-7de2f206757d"
+        os.environ["CODEX_SESSION_ID"] = session_id
+        sessions = os.path.join(self.codex_home, "sessions")
+        os.makedirs(sessions)
+        for prefix in ("first", "second"):
+            with io.open(os.path.join(sessions, f"{prefix}-{session_id}.jsonl"),
+                         "w", encoding="utf-8") as fh:
+                fh.write("{}\n")
+        self.assertIsNone(notion_mirror.codex_transcript())
+
+    def test_harvests_notion_result_from_codex_rollout_shape(self):
+        page_id = "0" * 32
+        sessions = os.path.join(self.codex_home, "sessions")
+        os.makedirs(sessions)
+        transcript = os.path.join(sessions, "rollout-test.jsonl")
+        result = {
+            "type": "event_msg",
+            "payload": {
+                "type": "item_completed",
+                "item": {
+                    "type": "McpToolCall",
+                    "server": "notion",
+                    "tool": "notion-fetch",
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": f'<page url="https://app.notion.com/p/{page_id}">\n'
+                                    "<content>\nCodex の本文\n</content>\n</page>",
+                        }],
+                    },
+                },
+            },
+        }
+        with io.open(transcript, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(result, ensure_ascii=False) + "\n")
+        found = notion_mirror.harvest(notion_mirror.Path(transcript))
+        self.assertEqual(found[page_id][1], "Codex の本文")
+
+
 class CliContractTestCase(unittest.TestCase):
     """CLI の「必ず 1 行は出す」「終了コードで意味が割れる」を固定する。
 

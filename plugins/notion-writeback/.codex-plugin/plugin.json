@@ -1,0 +1,23 @@
+{
+  "name": "notion-writeback",
+  "version": "0.2.0",
+  "description": "Safely write local files back to Notion through MCP without model transcription",
+  "author": {
+    "name": "c18t",
+    "url": "https://github.com/c18t"
+  },
+  "repository": "https://github.com/c18t/agent-skills",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Notion Writeback",
+    "shortDescription": "Safely write local files back to Notion",
+    "longDescription": "Keep a local source of truth, inject it into Notion MCP calls without model transcription, and verify the result after writing.",
+    "developerName": "c18t",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/c18t/agent-skills/tree/main/plugins/notion-writeback",
+    "defaultPrompt": [
+      "Write this local document back to its Notion page safely."
+    ]
+  }
+}

@@ -3,11 +3,12 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__.*notion-update-page",
+        "matcher": "mcp__.*notion[-_]update[-_]page",
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" \"${CLAUDE_PLUGIN_ROOT}/scripts/notion_write_guard.py\"",
+            "command": "sh \"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/python.sh\" \"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/notion_write_guard.py\"",
+            "commandWindows": "& \"${PLUGIN_ROOT}\\scripts\\python.cmd\" \"${PLUGIN_ROOT}\\scripts\\notion_write_guard.py\"",
             "timeout": 10,
             "statusMessage": "notion-guard: 書き込みを検査中"
           }

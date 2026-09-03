@@ -31,7 +31,8 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 | `notion_mirror.py diff` | ローカル正本と fetch 結果を正規化して照合する。`CLEAN` / `DIRTY` / `STALE` |
 | `notion-update-page` `replace_content` ＋ `@@FILE:<パス>@@` | PreToolUse フックがファイル実体を `new_str` に注入して全文を差し替える |
 
-スクリプトはプラグインの `scripts/` にある：`sh "${CLAUDE_PLUGIN_ROOT}/scripts/python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py"`。
+スクリプトはプラグインの `scripts/` にある。Claude Code は `CLAUDE_PLUGIN_ROOT`、Codex は
+`PLUGIN_ROOT` を使う（Codex は互換用の `CLAUDE_PLUGIN_ROOT` も設定する）。
 `python.sh` は `python3` / `python` / `py -3` のうち最初に見つかったもので実行するラッパー。
 **`python3` を直接叩かない**——Windows では `python3` が無いことが多く、環境ごとにコマンド名が違う。
 **Windows（PowerShell）からは `& "${CLAUDE_PLUGIN_ROOT}\scripts\python.cmd"`** を使う
@@ -47,6 +48,7 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 | --- | --- | --- |
 | Claude Code | `CLAUDE_PROJECT_DIR`＝リポジトリルート（**起動位置に依らない**） | プロジェクト内なら自由。ルート相対で指す（例 `docs/notion/<ページ名>.md`） |
 | Cowork（クラウド） | セッションの `cwd`（例 `/home/claude`） | **コンテナ内に置く。** 接続フォルダ（`/mnt/user-data/uploads/...`）は基準の外なので deny される |
+| Codex | フック入力の `cwd`（workspace root） | workspace root 内に置き、そこからの相対パスで指す |
 
 基準の外は指せない（`../` で抜けるのも deny）。**指したいならコンテナ内へコピーしてから指す。**
 
@@ -64,7 +66,7 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 ### 1. ローカル正本を用意する
 
 - **1-a** `notion-fetch` でページを取る
-- **1-b** `sh "${CLAUDE_PLUGIN_ROOT}/scripts/python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py" pull --page <ID or URL> --out <ローカル正本>`
+- **1-b** 環境に合うプラグインルートで `scripts/python.sh scripts/notion_mirror.py pull --page <ID or URL> [--out <ローカル正本>]` を実行する。Codex で `--out` を省略した場合は `.codex/tmp/<ページ ID>.md` に作る
 - 🔴 **`pull` を回してよいのは、未書き戻しのローカル編集が無いときだけ。** 編集を積んだ状態で回すと**消える**。
   既にローカル正本があり編集済みなら 1 は飛ばして 2 へ
 - 📌 **Cowork では正本をコンテナ内に置く**（例 `~/notion/<ページ名>.md`）。接続フォルダに置いたままだと
@@ -78,7 +80,7 @@ description: "Notion ページ 1 枚をローカル正本から書き戻す。fe
 ### 3. 照合する
 
 - **3-a** `notion-fetch` でページを**取り直す**（書き戻し直前の現物が要る）
-- **3-b** `sh "${CLAUDE_PLUGIN_ROOT}/scripts/python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/notion_mirror.py" diff --page <ID or URL> --file <ローカル正本>`
+- **3-b** 環境に合うプラグインルートで `scripts/python.sh scripts/notion_mirror.py diff --page <ID or URL> --file <ローカル正本>` を実行する
   - **編集したページは `DIRTY` が正常。** ラベルではなく差分の中身で判断する
   - 🔴 **「`DIRTY` だから書き戻せない」と読まない**——そう読むと書き戻せるページが 1 つも無くなり、手順ごと飛ばす動機になる
   - 🔴 **読むのは `⚠️消える(Notionのみ)` と `⚠️食い違い`**（＝Notion 側にしかない＝書き戻すと失われる側）。
@@ -133,7 +135,8 @@ fetch と `notion_mirror.py` の実行は投げてよい。**境界は「機構�
 
 投げ方は固定されている。**自分で依頼文を組まない。**
 
-1. `Agent` ツールで `subagent_type: "notion-writeback:notion-fetcher"` を指定する（このプラグイン同梱の軽量エージェント。
+1. Claude Code は `Agent` ツールで `subagent_type: "notion-writeback:notion-fetcher"` を指定する。Codex は `spawn_agent` でエージェントを起動し、
+   [reference/subagent-prompt.md](reference/subagent-prompt.md) のCodex用テンプレートを渡す（どちらも
    リトライ禁止・要約禁止・報告形式・`exceeds maximum allowed tokens` は正常・終了コード 1 は合図、をすべて持っている）
 2. 依頼文は [reference/subagent-prompt.md](reference/subagent-prompt.md) のテンプレートに**対象ページと引数だけ**埋める
 3. 返ってくるのは `<ページ ID>: <CLEAN|DIRTY|STALE|OK|ERROR> 差分 <N> 件 (exit=<code>) → <出力ファイル>` の行だけ。**本体が出力ファイルを読んで判断する**
@@ -186,6 +189,7 @@ Notion MCP 全般の実測（fetch の上限、`notion-search` のラグ、リ�
 | --- | --- | --- |
 | Claude Code（ローカル） | 動く | 動く |
 | Cowork（プラグインを Customize → Plugins からインストール済み） | 動く想定（PreToolUse は動く前提だが実測未確認） | ⚠️ トランスクリプトが `~/.claude/projects/` に無い可能性があり `STALE` になりうる |
+| Codex（プラグインをインストールし `/hooks` で信頼済み） | 動く | `CODEX_SESSION_ID` と `CODEX_HOME/sessions` から現在のrolloutだけを読む。形式変更時は `STALE` / `ERROR` に倒す |
 | プロジェクトの `.claude/settings.json` に書いたフック | **Cowork では読まれない** | — |
 
 📌 かつて「Cowork からは書き戻せない」と観測されたのは、フックをプラグインではなく
@@ -193,7 +197,7 @@ Notion MCP 全般の実測（fetch の上限、`notion-search` のラグ、リ�
 
 判定は環境の推測ではなく**読み戻しで行う**：書いた直後の `notion-fetch` で本文に `@@FILE:...@@` が残っていたらフックが動いていない。
 そのときはその文字列が本文になっているので、ローカル正本から `replace_content` で直す前に、プラグインの有効化を確認する
-（Claude Code なら `/plugin` と `/reload-plugins`、Cowork なら Customize → Plugins）。
+（Claude Code なら `/plugin` と `/reload-plugins`、Cowork なら Customize → Plugins、Codex ならプラグインの有効化と `/hooks` の信頼状態）。
 `notion_mirror.py` が `STALE` のままなら照合はできないので、**編集までにして書き戻しはローカルの Claude Code へ持ち越す。**
 
 どうしても全文転記に切り替えるなら、**直前に必ずファイル全文を Read してコピーする。記憶から書かない。**
