@@ -1,13 +1,19 @@
 # agent-skills
 
-Personal agent skills and Claude Code plugin marketplace.
+Personal agent skills and plugin marketplace for Claude Code and Codex.
 
 ## Install
+
+Claude Code:
 
 ```text
 /plugin marketplace add c18t/agent-skills
 /plugin install notion-writeback@c18t
 ```
+
+Codex plugins use the `.codex-plugin/plugin.json` manifest bundled in each supported plugin.
+After installing `notion-writeback`, review and trust its hook with `/hooks`, then invoke it with
+`$notion-writeback:notion-writeback`.
 
 ## Plugins
 
@@ -25,5 +31,7 @@ claude --plugin-dir ./plugins/notion-writeback
 ```bash
 claude plugin validate ./plugins/notion-writeback
 ```
+
+Validate the Codex manifest with the bundled `plugin-creator` validator.
 
 Lint Markdown with `markdownlint-cli2 "**/*.md"`.

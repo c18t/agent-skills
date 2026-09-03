@@ -58,6 +58,19 @@ class TestHookCommandString(unittest.TestCase):
                 os.path.isfile(os.path.join(PLUGIN_ROOT, *rel.split("/"))),
                 f"{rel} が存在しない")
 
+    def test_supports_codex_plugin_root(self):
+        cmd = hook_command()
+        self.assertIn("PLUGIN_ROOT", cmd)
+        self.assertIn("CLAUDE_PLUGIN_ROOT", cmd)
+
+    def test_windows_command_uses_codex_plugin_root(self):
+        with open(HOOKS_JSON, encoding="utf-8") as f:
+            hooks = json.load(f)
+        handler = hooks["hooks"]["PreToolUse"][0]["hooks"][0]
+        command = handler.get("commandWindows", "")
+        self.assertIn("PLUGIN_ROOT", command)
+        self.assertIn("python.cmd", command)
+
 
 @unittest.skipIf(SH is None, "sh が無い環境ではフックコマンドを起動できない")
 class TestHookCommandExecutes(unittest.TestCase):

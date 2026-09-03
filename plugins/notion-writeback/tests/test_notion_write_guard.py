@@ -90,6 +90,7 @@ class TestSentinelInjection(GuardTestCase):
         proc, result = self.run_guard(ti)
         self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8", "replace"))
         updated = result["hookSpecificOutput"]["updatedInput"]
+        self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "allow")
         expected = dict(ti)
         expected["new_str"] = EMOJI_TEXT
         self.assertEqual(updated, expected)

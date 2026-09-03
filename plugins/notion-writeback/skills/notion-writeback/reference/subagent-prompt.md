@@ -1,6 +1,7 @@
 # サブエージェントへの依頼文（テンプレート）
 
-`Agent` ツールで `subagent_type: "notion-writeback:notion-fetcher"` を指定し、下の本文の `<…>` を埋めてそのまま渡す。
+Claude Code は `Agent` ツールで `subagent_type: "notion-writeback:notion-fetcher"` を指定する。
+Codex は `spawn_agent` を使い、下の本文の `<…>` を埋めてそのまま渡す。
 エージェント側の振る舞い（リトライ禁止・要約禁止・報告形式）は `agents/notion-fetcher.md` に固定してあるので、
 依頼文に書くのは**対象と引数だけ**でよい。
 
