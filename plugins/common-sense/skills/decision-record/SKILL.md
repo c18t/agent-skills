@@ -21,8 +21,14 @@ description: "捨てた選択肢がある判断を ADR として起草・更新�
 リポジトリの `AGENTS.md` に ADR の規約があれば従う。private companion repository が指定されていれば、
 [reference/private-storage.md](reference/private-storage.md) の helper で保存先を解決・検証してから使う。
 clone が無い、独立した Git repository ではない、または書き込めない場合は public tree へフォールバック
-せず停止し、同 reference の復旧方法を示す。規約が無ければ、既存の `docs/adr/`、
-`docs/decisions/` の順で使う。
+せず停止し、同 reference の復旧方法を示す。
+
+規約が無ければ、public tree の `docs/adr/` と `docs/decisions/`、およびセットアップ済みの private
+companion repository を調べる。既存の保存先が 1 つだけで公開 / 非公開の区分も明らかなら、それを既存規約
+として使う。保存先が無い、複数ある、または区分が不明なら、ADR を起草・作成する前に公開 ADR と非公開
+ADR のどちらにするかをユーザーへ確認する。回答を得るまで `docs/decisions/` へ自動的に保存しない。
+公開 ADR を選んだ場合は既存の `docs/adr/`、`docs/decisions/` の順で使い、どちらも無ければ
+`docs/decisions/` を作る。非公開 ADR を選んだ場合は手順 6 に従う。
 
 解決した保存先で、同じ論点の ADR と、それを supersede する ADR が無いかを調べる。
 
