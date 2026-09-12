@@ -16,6 +16,12 @@ worktree のディレクトリは残るので、`EnterWorktree` に同じ `path`
 
 ## worktree の作成・移動まわり
 
+- **Codex sandbox で worktree を作成できない** … `Read-only file system`、または
+  `.git/refs` / `.git/worktrees` への書き込み拒否は sandbox 境界として扱う。同じ
+  `git worktree add` コマンドを、作成するブランチ名と worktree の絶対パスを権限確認の説明に含め、
+  sandbox の権限昇格付きで再実行する。ref 衝突と診断する前に、衝突すると考えた完全一致の ref を
+  `git show-ref --verify "refs/heads/<ブランチ名>"` で確認する。ブランチが無い場合も先に
+  `git branch` へ分けず、`git worktree add -b` の一操作を保つ
 - **`EnterWorktree` が `path` を拒む** … `git worktree list` に出ていないパスは入れない。
   手順 3-b が実際に成功したか確認する。パスは repo ルートからの相対で解決される点にも注意
 - **`fatal: '<パス>' already exists`** … 以前の worktree が残っている。
