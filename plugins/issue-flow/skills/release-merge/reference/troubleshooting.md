@@ -38,6 +38,21 @@ base の張り替えを選んでよいのは、`deleteBranchOnMerge` が無効�
 - 衝突を抱えたまま放置すると、**メインチェックアウトが人質になる**
 - 統合状態の CI をローカルで回すとき、専用の作業場があるほうが確実
 
+## worktree の配置まわり
+
+- **release worktree をリポジトリ外の sibling パス（`../<リポジトリ名>-release-...`）へ作る** …
+  0.7.1 までの既定。`issue-work` と配置規約が割れて作業場所の見通しと cleanup が揃わず、
+  Codex では writable root の外に出るため、そこへ一時ディレクトリを作るのに追加の権限承認が要る
+  （PR #50 の実例）。`<リポジトリルート>/.claude/worktrees/<ブランチ名のスラッシュをハイフンに置換>`
+  へ作る（手順 2）
+- **`.claude/worktrees/` を `.gitignore` に入れ忘れる** … release worktree のファイルが
+  release ブランチの差分に丸ごと乗る。未登録なら今回の release ブランチで追加する
+- **`.gitignore` への追加を worktree ごとに main へ直接入れる** … main の作業ツリーを汚す。
+  今回のブランチの変更として入れる
+- **Codex で worktree 内に一時ディレクトリを作れない** … sandbox の writable root を先に確認する。
+  permission denied を内容の不具合として扱わず、必要なら理由と対象を示して承認を取る
+  （[../../issue-work/reference/runtime-boundaries.md](../../issue-work/reference/runtime-boundaries.md)）
+
 ## 衝突検出まわり
 
 - **`mergeable` を PR 同士の衝突判定に使う** … 「PR と main」しか答えない。
@@ -111,4 +126,5 @@ base の張り替えを選んでよいのは、`deleteBranchOnMerge` が無効�
 - **`git push origin --delete` が「remote ref does not exist」で失敗する** …
   マージ後にブランチを自動削除する設定。正常なので無視してよい
 - **`*.code-workspace` の編集がハーネスに弾かれる** … メインチェックアウト側のファイル。
-  追記は移動前（手順 4）、削除は `ExitWorktree` の後（12-d）に行う
+  追記は移動前（手順 4）、削除は `ExitWorktree` の後（12-d）に行う。
+  Codex では main checkout の絶対パスを `workdir` にして編集する
