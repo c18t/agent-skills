@@ -274,6 +274,9 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
 
 - **12-c** worktree とローカルブランチを片付ける
 
+  まず release worktree とメイン checkout の両方で `git status --short` を確認する。未コミット変更や
+  ユーザー所有の未追跡ファイルがあれば削除せず止まる。
+
   ```bash
   git worktree remove <パス>
   git branch -D release/<プラグイン名>-<version>
@@ -284,9 +287,43 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
   この順序で行う。`git worktree remove` が未コミットの変更を理由に拒んだら、
   **`--force` を付けずに止まり**ユーザーに伝える。
 
+  続いて、手順 1 で記録した統合対象 PR の head ブランチごとに worktree とブランチを片付ける。
+  配置をパスから決め打ちせず `git worktree list --porcelain` で対応する worktree を探す
+  （過去の sibling path と `.claude/worktrees/` 配下の両方があり得る）。
+
+  🔴 **`git branch -d` の成否だけで削除可否を決めない。** squash merge されたブランチは `-d` が
+  拒む一方、無条件の `-D` は未マージの作業も消す。各ブランチについて、次のどちらかを確認できた
+  場合だけ削除してよい。
+
+  ```bash
+  git merge-base --is-ancestor <headブランチ> origin/<デフォルトブランチ>
+  gh pr list --state merged --head <headブランチ> --json number,mergedAt
+  ```
+
+  - 祖先である … 内容がデフォルトブランチに到達済みなので削除してよい
+  - 祖先でない … squash merge と未マージを区別できないため、PR が MERGED と確認できた場合だけ
+    削除してよい
+  - どちらの根拠も取れない … **削除せず残置する**
+
+  削除可能な対象でも、worktree で `git status --short` を確認してから次の順で実行する。
+
+  ```bash
+  git worktree remove <統合対象PRのworktreeパス>
+  git branch -D <headブランチ>
+  git push origin --delete <headブランチ>
+  git fetch --prune
+  ```
+
+  worktree に未コミット変更・未追跡ファイルがある場合や、その worktree が現在のセッションの居場所で
+  ある場合は削除しない。`--force` は使わない。リモート削除の `remote ref does not exist` は自動削除
+  済みなので正常。MCP 経路ではリモートブランチを削除できないため自動削除設定に任せ、残った
+  ブランチ名を報告する。
+
 - **12-d** `*.code-workspace` から worktree の記載を消す
 
-  手順 4 で追記した `folders` の要素だけを **Edit で**取り除く。
+  手順 4 で追記した release worktree と、12-c で実際に削除した統合対象 PR の worktree の
+  `folders` 要素だけを **Edit で**取り除く。削除できず残置した worktree の要素は、次に入るための
+  入口として残す。
   メインチェックアウト側への書き込みなので **11-a で出た後に**行う。
 
 - **12-e** マージ済みであることを確認して報告する
@@ -295,7 +332,15 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
   git log --oneline -1 origin/<デフォルトブランチ>
   ```
 
-  あわせて、含まれる各 PR と issue の最終状態を報告する。
+  あわせて、含まれる各 PR と issue の最終状態、および片付けの結果を報告する。削除したものは
+  worktree パスとブランチ名を、残置したものはパスまたはブランチ名と理由を示す。未コミット変更が
+  理由なら `git status --short` の内容も出す。**残置がある場合は省略しない。**
+
+  ```text
+  片付け:
+    削除 … <パス> / <ブランチ名>
+    残置 … <パス>（未コミットの変更あり: <ファイル数> 件）
+  ```
 
 ## 例外時の参照先
 
