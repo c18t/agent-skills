@@ -84,6 +84,12 @@ git show-ref --verify --quiet "refs/heads/<ブランチ名>" && echo exists || e
 | 無い | `git worktree add -b <ブランチ名> <パス>` |
 | ある | `git worktree add <パス> <ブランチ名>` |
 
+Codex ではどちらの `git worktree add` も、**最初から sandbox の権限昇格付き**で実行する。
+ブランチが無い場合は `.git/refs/heads/` と `.git/worktrees/` の両方、既存の場合も
+`.git/worktrees/` へ書き込むため。権限確認の説明には、作成するブランチ名と worktree の絶対パスを
+含める。先に `git branch` でブランチだけ作らず、上表の一操作を保つ。詳細と拒否時の診断は
+[reference/runtime-boundaries.md](reference/runtime-boundaries.md) を参照する。
+
 `git worktree list` で登録を確認する。
 
 ### 4. `*.code-workspace` に worktree を登録する
