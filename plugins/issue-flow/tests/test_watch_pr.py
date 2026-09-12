@@ -2,6 +2,7 @@
 
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -13,6 +14,22 @@ SPEC.loader.exec_module(watch_pr)
 
 
 class TestWatch(unittest.TestCase):
+    def test_gh_json_accepts_failed_check_exit_code_when_json_is_valid(self):
+        proc = SimpleNamespace(
+            returncode=1,
+            stdout='[{"name":"test","bucket":"fail"}]',
+        )
+        with mock.patch.object(watch_pr.subprocess, "run", return_value=proc):
+            self.assertEqual(
+                [{"name": "test", "bucket": "fail"}],
+                watch_pr.gh_json("pr", "checks", "45", "--json", "name,bucket"),
+            )
+
+    def test_gh_json_rejects_failure_without_json(self):
+        proc = SimpleNamespace(returncode=1, stdout="")
+        with mock.patch.object(watch_pr.subprocess, "run", return_value=proc):
+            self.assertIsNone(watch_pr.gh_json("pr", "checks", "45"))
+
     def test_emits_new_terminal_checks_and_waits_for_every_check(self):
         snapshots = [
             [{"name": "lint", "bucket": "pass"},

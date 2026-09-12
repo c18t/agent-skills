@@ -8,11 +8,9 @@ import time
 
 
 def gh_json(*args):
-    """Run gh and return decoded JSON, or None for a transient failure."""
+    """Return gh's JSON, including checks output accompanied by exit 1."""
     proc = subprocess.run(
         ["gh", *args], capture_output=True, text=True, encoding="utf-8")
-    if proc.returncode != 0:
-        return None
     try:
         return json.loads(proc.stdout)
     except json.JSONDecodeError:
