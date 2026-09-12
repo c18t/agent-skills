@@ -7,6 +7,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 SKILL = PLUGIN_ROOT / "skills" / "issue-work" / "SKILL.md"
 BOUNDARIES = PLUGIN_ROOT / "skills" / "issue-work" / "reference" / "runtime-boundaries.md"
 GITHUB_MCP = PLUGIN_ROOT / "skills" / "issue-work" / "reference" / "github-mcp.md"
+TROUBLESHOOTING = PLUGIN_ROOT / "skills" / "issue-work" / "reference" / "troubleshooting.md"
 
 
 class TestCodexWorktreeBoundaryInstructions(unittest.TestCase):
@@ -15,6 +16,7 @@ class TestCodexWorktreeBoundaryInstructions(unittest.TestCase):
         cls.skill = SKILL.read_text(encoding="utf-8")
         cls.boundaries = BOUNDARIES.read_text(encoding="utf-8")
         cls.github_mcp = GITHUB_MCP.read_text(encoding="utf-8")
+        cls.troubleshooting = TROUBLESHOOTING.read_text(encoding="utf-8")
 
     def test_skill_routes_codex_to_boundary_reference(self):
         self.assertIn("reference/runtime-boundaries.md", self.skill)
@@ -26,6 +28,19 @@ class TestCodexWorktreeBoundaryInstructions(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertIn(command, self.boundaries)
         self.assertIn("絶対 `workdir`", self.boundaries)
+
+    def test_codex_escalates_initial_worktree_creation(self):
+        for marker in ("最初から sandbox の権限昇格付き", "git worktree add -b",
+                       "ブランチ名", "worktree の絶対パス"):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.skill)
+                self.assertIn(marker, self.boundaries)
+
+    def test_worktree_failure_diagnosis_distinguishes_sandbox_from_ref_conflict(self):
+        for marker in ("Read-only file system", ".git/refs", ".git/worktrees",
+                       "git show-ref --verify", "同じ"):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.troubleshooting)
 
     def test_cleanup_protects_user_files(self):
         self.assertIn("git status --short", self.boundaries)
