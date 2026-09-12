@@ -18,5 +18,8 @@ A repository can define its own routing table in `AGENTS.md`; otherwise, the ski
 Records a decision as an ADR when one option was chosen from multiple alternatives. It uses a MADR v4-based template
 to preserve the rejected options, the reason for the choice, and the `enforced_by` mechanism that upholds it.
 
+Private ADRs can use one private `<repository>-decisions` companion per project. A bundled resolver gives the main
+checkout and all linked worktrees one canonical clone without tracking a user-specific absolute path.
+
 Unlike `commit-message`, which explains the current change, this skill covers decisions that remain relevant beyond
 that change.
