@@ -58,7 +58,8 @@ class DecisionStoreTestCase(unittest.TestCase):
         store = decision_store.resolve(self.worktree)
         decision_store.require_ignored(store)
         decision_store.require_clone(store)
-        self.assertEqual(store.decisions, clone / "docs" / "decisions")
+        self.assertEqual(
+            store.decisions.resolve(), (clone / "docs" / "decisions").resolve())
         self.assertTrue(store.decisions.is_dir())
         self.assertEqual(git(self.root, "status", "--short"), "")
         self.assertEqual(git(self.worktree, "status", "--short"), "")
