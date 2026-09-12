@@ -188,7 +188,15 @@ PR 作成の MCP 経路は `create_pull_request`（本文はファイルに保�
 CI は同梱スクリプトを `Monitor` ツールの `command` に渡して待つ。
 
 ```bash
-sh "${CLAUDE_PLUGIN_ROOT}/scripts/watch-pr.sh" <PR番号>
+sh "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/python.sh" \
+  "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/watch_pr.py" <PR番号>
+```
+
+Windows（PowerShell）では同じ Python 本体を Windows ランチャーから呼ぶ。
+
+```powershell
+& "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}\scripts\python.cmd" `
+  "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}\scripts\watch_pr.py" <PR番号>
 ```
 
 🔴 `gh pr checks --watch` は使わない。監視ループを Monitor に直接書かない（worktree 滞在中は
@@ -196,10 +204,6 @@ sh "${CLAUDE_PLUGIN_ROOT}/scripts/watch-pr.sh" <PR番号>
 [reference/ci-watch.md](../issue-work/reference/ci-watch.md)。
 `gh` が無い環境ではスクリプトも動かないので、ポーリングせず都度確認に倒す
 （同ファイルの「`gh` が無い環境では都度確認に倒す」）。
-❗ **Windows（PowerShell）からも動かない。** `watch-pr.sh` は POSIX シェル前提で、
-issue-flow には `.cmd` ラッパーも `commandWindows` も無い。`gh` が無い環境と同じく
-**都度確認に倒す**（同ファイルの「Windows（PowerShell）では動かない」）。
-
 CI が落ちたら直してコミットし直す。**落ちたままマージへ進まない。**
 
 ### 11. release → main を merge commit で入れる 🛑

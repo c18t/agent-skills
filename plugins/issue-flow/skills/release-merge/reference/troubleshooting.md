@@ -93,9 +93,9 @@ base の張り替えを選んでよいのは、`deleteBranchOnMerge` が無効�
 - **`gh pr create --template` でテンプレートを読ませようとする** … 対話エディタの初期値を
   入れるだけで、非対話実行では効かない。読んで埋めて `--body-file` で渡す（手順 9）
 - **監視ループを Monitor の `command` に直接書く** … worktree 滞在中はハーネスに弾かれる。
-  `scripts/watch-pr.sh` に逃がす。詳細は `issue-work` スキルの
+  `scripts/watch_pr.py` に逃がす。詳細は `issue-work` スキルの
   [reference/ci-watch.md](../../issue-work/reference/ci-watch.md)
-- **`gh` が無い環境（Cowork など）で `watch-pr.sh` を使おうとする** … スクリプトは
+- **`gh` が無い環境（Cowork など）で `watch_pr.py` を使おうとする** … スクリプトは
   `gh pr checks` 前提で動かない。ポーリングせず都度確認に倒す
   （[ci-watch.md](../../issue-work/reference/ci-watch.md) の「`gh` が無い環境では都度確認に倒す」）
 - **`gh` も `git push` の認証も無い環境で release ブランチを push しようとする** …

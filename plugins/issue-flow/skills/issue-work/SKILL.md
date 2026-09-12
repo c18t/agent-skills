@@ -193,7 +193,15 @@ MCP 経路は `pull_request_read`（method: `get_check_runs` と `get`）。
 `pending` が残っていれば、同梱スクリプトを `Monitor` ツールの `command` に渡して待つ。
 
 ```bash
-sh "${CLAUDE_PLUGIN_ROOT}/scripts/watch-pr.sh" <PR番号>
+sh "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/python.sh" \
+  "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/watch_pr.py" <PR番号>
+```
+
+Windows（PowerShell）では同じ Python 本体を Windows ランチャーから呼ぶ。
+
+```powershell
+& "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}\scripts\python.cmd" `
+  "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}\scripts\watch_pr.py" <PR番号>
 ```
 
 🔴 `gh pr checks --watch` は使わない。監視ループを Monitor に直接書かない
@@ -201,10 +209,6 @@ sh "${CLAUDE_PLUGIN_ROOT}/scripts/watch-pr.sh" <PR番号>
 [reference/ci-watch.md](reference/ci-watch.md)。
 `gh` が無い環境ではスクリプトも動かないので、ポーリングせず都度確認に倒す
 （同ファイルの「`gh` が無い環境では都度確認に倒す」）。
-❗ **Windows（PowerShell）からも動かない。** `watch-pr.sh` は POSIX シェル前提で、
-issue-flow には `.cmd` ラッパーも `commandWindows` も無い。`gh` が無い環境と同じく
-**都度確認に倒す**（同ファイルの「Windows（PowerShell）では動かない」）。
-
 CI が落ちたら直してコミットし直す。**落ちたままマージへ進まない。**
 
 CI が通ったら、次の 3 点をチャットに出してユーザーの承認を待つ。
@@ -287,7 +291,7 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 | --- | --- |
 | [reference/troubleshooting.md](reference/troubleshooting.md) | 落ちる原因（既知）、中断時の扱い、`*.code-workspace` 編集の分岐 |
 | [reference/rename-branch.md](reference/rename-branch.md) | 作業途中でブランチ名を変える手順 |
-| [reference/ci-watch.md](reference/ci-watch.md) | CI 監視の制約と `watch-pr.sh` が担う判断、`gh` が無い環境での都度確認 |
+| [reference/ci-watch.md](reference/ci-watch.md) | CI 監視の制約と `watch_pr.py` が担う判断、`gh` が無い環境での都度確認 |
 | [reference/github-mcp.md](reference/github-mcp.md) | 経路の判定と、gh ↔ GitHub MCP の対応表 |
 | [reference/runtime-boundaries.md](reference/runtime-boundaries.md) | Codex の workdir 境界、plugin cache、hook・sandbox 検証 |
 | [templates/pull_request.md](templates/pull_request.md) | リポジトリに PR テンプレートが無いときの既定 |

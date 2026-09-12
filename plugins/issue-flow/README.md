@@ -46,7 +46,7 @@ Given an issue number:
 8. Commits using Conventional Commits (freely, in as many commits as the work needs)
 9. Creates a thread-scoped `.codex/tmp/<id>/` in Codex, then **writes the PR body into the chat for review — it does not call `gh pr create`** — filled from `.github/pull_request_template.md`, or from the bundled default [skills/issue-work/templates/pull_request.md](skills/issue-work/templates/pull_request.md) when the repository has none
 10. Pushes and opens the PR once you approve
-11. Waits for CI via `scripts/watch-pr.sh` under the Monitor tool, then asks for merge approval
+11. Waits for CI via `scripts/watch_pr.py` under the Monitor tool, then asks for merge approval
     with the squash commit message it intends to use
 12. Squash-merges with `--subject`/`--body-file` from the main checkout, verifies both trees are safe to clean, removes the worktree, and drops its `folders` entry
 
@@ -67,7 +67,7 @@ Given the numbers of PRs that cannot land one at a time:
 4. Merges each PR in with `git merge --no-ff`, recording what was resolved and why for the PR body. When a PR renames a directory it goes first, and `git status` is checked after each merge for new files that landed under the old path — git cannot track a rename for files absent from the merge base, so they are not reported as conflicts
 5. Runs the project's checks against the *integrated* tree, then checks the versions, READMEs, directory layout, and leftover old names for the inconsistencies a clean merge still leaves behind
 6. **Writes the release PR body into the chat for review** — filled from `.github/PULL_REQUEST_TEMPLATE/release.md`, or from the bundled default [skills/release-merge/templates/release.md](skills/release-merge/templates/release.md) when the repository has none. It reads and fills the template itself, since `gh pr create --template` only seeds the interactive editor
-7. Opens the PR once you approve, waits for CI via the same `scripts/watch-pr.sh`, and asks before merging
+7. Opens the PR once you approve, waits for CI via the same `scripts/watch_pr.py`, and asks before merging
 8. `gh pr merge --merge` — never `--squash`, which would rewrite the head SHAs and leave every included PR to be closed by hand
 9. Verifies the auto-closes landed, closes by hand whatever did not, and cleans up
 
@@ -105,23 +105,31 @@ where the hook does not run.
 - A way to read and write GitHub — either `gh` on `PATH` and authenticated (`gh auth status`), or a GitHub MCP server whose tools are visible to the session. The skills check in that order, once per run, and stop if neither is available — none of them authenticates for you. Every `gh` operation has its MCP counterpart in [skills/issue-work/reference/github-mcp.md](skills/issue-work/reference/github-mcp.md)
 - A git repository with a remote (`issue-work`, `release-merge`)
 - `EnterWorktree` needs your approval on first entry, because the worktree lives outside `.claude/worktrees/` (`issue-work`, `release-merge`)
-- Python 3 on `PATH` — any of `python3`, `python`, or `py` (the hook goes through `scripts/python.sh`, which picks the first one that exists). Only the MCP path needs it; the `gh` path never invokes the hook. If none is found the hook exits 2 and blocks the write rather than letting an unexpanded `@@FILE:...@@` reach GitHub
-- A POSIX shell — everything under `scripts/` is invoked as `sh <script>`, and `hooks.json` has no `commandWindows` variant. See [Windows](#windows) below
+- Python 3 on `PATH` — any of `python3`, `python`, or `py`. Unix-like systems use
+  `scripts/python.sh`; Windows uses `scripts/python.cmd`. The MCP hook and CI watcher go through
+  these launchers. If none is found, the launcher exits 2 instead of allowing an unexpanded
+  `@@FILE:...@@` to reach GitHub
+- A POSIX shell on macOS / Linux for `scripts/python.sh`; PowerShell uses `scripts/python.cmd`
 
 ### Windows
 
-Not supported yet. PowerShell rewrites a leading `sh` to `&`, so no external process starts at all
-(the exit code comes back as an empty string rather than a number), and issue-flow ships no `.cmd`
-wrappers to invoke instead. Two consequences:
+Windows is supported through `scripts/python.cmd`, which has the same interpreter search order and
+exit-code contract as `scripts/python.sh`. The PreToolUse hook selects it with `commandWindows`, and
+the skills use it to run the shared `scripts/watch_pr.py` CI watcher from PowerShell. Both hook
+commands resolve Codex's `PLUGIN_ROOT` first and fall back to Claude Code's
+`CLAUDE_PLUGIN_ROOT`.
 
-- The CI wait in `issue-work` (step 11) and `release-merge` (step 10) cannot use
-  `scripts/watch-pr.sh`. Fall back to polling `gh pr checks` / `gh pr view` by hand, the same way
-  the skills do where `gh` is missing — see
-  [skills/issue-work/reference/ci-watch.md](skills/issue-work/reference/ci-watch.md)
-- The PreToolUse hook does not run, so `@@FILE:` sentinels are not expanded. That is fail-closed on
-  the MCP path — the hook not running means no substitution happens and the raw sentinel would be
-  pushed, which is exactly what the post-`push_files` diff check exists to catch. The `gh` path
-  never invokes the hook and is unaffected
+Codex users must trust the plugin hook in `/hooks` and confirm that its matcher covers the actual
+GitHub MCP tool name shown by the runtime. The post-`push_files` fetch and diff remains mandatory;
+it verifies the remote bytes even when a hook was not loaded or its matcher did not fire.
+
+### Scripts
+
+- `python.sh` — selects `python3`, `python`, or `py -3` on macOS / Linux
+- `python.cmd` — Windows launcher with the same selection and exit-code behavior
+- `github_write_guard.py` — expands `@@FILE:` sentinels for GitHub MCP writes
+- `session_tmp.py` — creates a thread-scoped directory for reviewed bodies
+- `watch_pr.py` — polls CI once for both Unix-like systems and Windows
 
 ### Cowork
 
