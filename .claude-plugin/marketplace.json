@@ -15,6 +15,12 @@
       "description": "GitHub issue を起点にしたワークフローのスキルセット。issue を起草してレビューを経て作成し、issue 番号から専用 worktree の作業境界を守って解決・PR 作成・squash merge まで進め、1 本ずつマージできない複数 PR は release ブランチで統合する",
       "source": "./plugins/issue-flow",
       "category": "workflow"
+    },
+    {
+      "name": "common-sense",
+      "description": "AI と利用者が判断の前提と理由を共有するためのスキルやエージェントをまとめ、共通の判断材料として使えるようにする",
+      "source": "./plugins/common-sense",
+      "category": "productivity"
     }
   ]
 }

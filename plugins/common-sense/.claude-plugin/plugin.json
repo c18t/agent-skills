@@ -1,0 +1,7 @@
+{
+  "name": "common-sense",
+  "description": "AI と利用者が判断の前提と理由を共有するためのスキルやエージェントをまとめ、共通の判断材料として使えるようにする",
+  "version": "0.1.0",
+  "author": { "name": "c18t" },
+  "keywords": ["ai", "decision", "context", "workflow"]
+}
