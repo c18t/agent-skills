@@ -1,13 +1,22 @@
 # common-sense
 
-AI と利用者の共通認識となる判断手順をまとめるプラグイン。名前は Perl の
-[`common::sense`](https://metacpan.org/pod/common::sense) に由来する。
+A plugin for the judgment processes that form shared context between AI and its users. Its name comes from Perl's
+[`common::sense`](https://metacpan.org/pod/common::sense).
 
 ## Skills
 
 ### `commit-message`
 
-コミットメッセージを書く前に diff を読み、変更の説明を適切な宛先へ振り分ける。
-コミットには「なぜ今 / なぜこの形か」を残し、差分から読める列挙や作業報告を持ち込まない。
+Reads a diff before writing a commit message and routes information about the change to the right destination.
+The commit retains why the change is needed now and why this approach was chosen, without repeating the diff or
+turning the message into a work report.
 
-リポジトリ固有の宛先表は `AGENTS.md` に置ける。表が無い場合はスキル内の既定を使う。
+A repository can define its own routing table in `AGENTS.md`; otherwise, the skill uses its default.
+
+### `decision-record`
+
+Records a decision as an ADR when one option was chosen from multiple alternatives. It uses a MADR v4-based template
+to preserve the rejected options, the reason for the choice, and the `enforced_by` mechanism that upholds it.
+
+Unlike `commit-message`, which explains the current change, this skill covers decisions that remain relevant beyond
+that change.
