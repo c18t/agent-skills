@@ -7,7 +7,8 @@ description: "破壊的変更が重なって 1 本ずつマージできない複
 
 引数は統合したい PR 番号（`11 12` でも `#11 #12` でも可）。省略されたらどの PR を統合するかを聞く。
 
-PR 同士が衝突するかを事前に確かめ、`release/<プラグイン名>-<version>` の worktree を作って
+PR 同士が衝突するかを事前に確かめ、release ブランチ（プラグイン境界で切れるなら
+`release/<プラグイン名>-<version>`、境界をまたぐなら `release/merge-<日付>`）の worktree を作って
 セッションごと移動し、その中で PR を 1 本ずつローカル merge して衝突を解消する。
 統合状態で CI を回してからリリース PR を出し、承認を得て release → main を merge commit で入れ、
 自動クローズを確認して worktree を片付ける。
@@ -62,11 +63,30 @@ git merge-tree --write-tree origin/<A> origin/<B>   # 衝突すると exit 1
 **ユーザーに version を聞かない。** 統合対象が同じ minor を主張していたら、それ以上上げない
 （リリースが 1 回なら version は 1 つ）。
 
-- ブランチ名 … **`release/<プラグイン名>-<version>`**（例 `release/my-plugin-1.2.0`）。
+**分けるかまとめるかは「変更がプラグイン境界で切れるか」で決める。** 依存の有無ではない。
+
+| 判定 | release ブランチ |
+| --- | --- |
+| 変更がプラグインごとに閉じている | 分ける。プラグインごとに 1 本 **`release/<プラグイン名>-<version>`** |
+| 変更が境界をまたぐ（2 つ以上） | まとめる。**`release/merge-<日付>`** 1 本 |
+
+境界をまたぐケースは少なくとも 2 通りある。**後者は依存が無いリポジトリでも起きる**ので、
+「プラグインが独立しているなら分ければよい」では足りない。
+
+- プラグイン間に依存がある（`core` を上げたら `ui` も上げないと壊れる）
+- **変更そのものが分割できない**（複数プラグインをまたぐドキュメントの不整合解消など）
+
+名前とパスは次のとおり。
+
+- 単体のブランチ名 … `release/<プラグイン名>-<version>`（例 `release/my-plugin-1.2.0`）。
   プラグイン名は必須（モノレポで version が独立しているため）。ドットはそのまま。issue 番号は付けない
+- 境界をまたぐブランチ名 … `release/merge-<日付>`（例 `release/merge-2026-09-04`）。
+  同日に 2 回あるなら末尾に `-2` を付ける。**プラグイン名も version も名前に入れない**
+  （列挙するとプラグイン 2 つで 62 文字に達し、worktree パスが Windows の `MAX_PATH` 260 を
+  圧迫する。version を含めると、切ったあとに version を見直した時点で名前が実態とずれる）。
+  含まれるプラグインと version はリリース PR 本文の「含まれる PR」欄が持つ（手順 9）
 - worktree パス … `../<リポジトリ名>-<ブランチ名のスラッシュをハイフンに置換>`
-  （例 `../my-repo-release-my-plugin-1.2.0`）
-- 複数プラグインを同時にリリースするなら、プラグインごとに release ブランチを分ける
+  （例 `../my-repo-release-my-plugin-1.2.0` / `../my-repo-release-merge-2026-09-04`）
 
 ```bash
 basename "$(git rev-parse --show-toplevel)"
@@ -77,8 +97,8 @@ basename "$(git rev-parse --show-toplevel)"
 - 対象 PR の一覧と**マージ順**。衝突が小さいほうを先に入れ、あとの 1 本で解消をまとめる。
   **リネーム（ディレクトリ改名）を含む PR があれば最初に入れる**
   （[reference/rename-merge.md](reference/rename-merge.md)）
-- ブランチ名と worktree パス
-- version と、それ以上上げない根拠
+- ブランチ名と worktree パス。**分けた／まとめた根拠**（境界で切れるかどうか）
+- version と、それ以上上げない根拠。まとめた場合はプラグインごとに
 - 手順 1 で見つかった衝突（ファイルと内容）
 
 ### 3. worktree を作る
@@ -88,7 +108,7 @@ release ブランチは**必ず新規**。起点は `origin/<デフォルトブ�
 
 ```bash
 git fetch origin
-git worktree add -b release/<プラグイン名>-<version> <パス> origin/<デフォルトブランチ>
+git worktree add -b <手順 2 で決めたブランチ名> <パス> origin/<デフォルトブランチ>
 git worktree list
 ```
 
@@ -114,7 +134,7 @@ git worktree list
 ```bash
 git fetch origin
 git merge --no-ff origin/<PR のブランチ>   # 衝突があればここで解消
-git push -u origin release/<プラグイン名>-<version>
+git push -u origin <手順 2 で決めたブランチ名>
 ```
 
 - 🔴 **`--no-ff` の merge commit で入れる。** squash すると head SHA が変わり、
@@ -182,6 +202,10 @@ git push
 gh pr create --base <デフォルトブランチ> --title "release: <プラグイン名> <version>" --body-file <本文ファイル>
 ```
 
+境界をまたいでまとめた場合は、タイトルにプラグインと version を並べる
+（例 `release: my-plugin 1.2.0 and my-ui 0.4.0`）。**ブランチ名と違って PR タイトルは長さの制約が
+緩く、リリース内容が一目で分かるほうが有用**なので、ここは列挙してよい。
+
 PR 作成の MCP 経路は `create_pull_request`（本文はファイルに保存して `body` に
 `@@FILE:<相対パス>@@`）。push は 🔴 `git push` のみ（冒頭の注意）。
 
@@ -226,7 +250,7 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 - **11-b** マージする
 
   ```bash
-  gh pr merge <PR番号> --merge --subject "release: <プラグイン名> <version> (#<PR番号>)"
+  gh pr merge <PR番号> --merge --subject "<手順 10 の PR タイトル> (#<PR番号>)"
   ```
 
   ❗ **`--subject` の末尾に半角スペース＋`(#<PR番号>)` を付ける。** `--subject` を渡すと GitHub が
@@ -276,8 +300,8 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
 
   ```bash
   git worktree remove <パス>
-  git branch -D release/<プラグイン名>-<version>
-  git push origin --delete release/<プラグイン名>-<version>
+  git branch -D <手順 2 で決めたブランチ名>
+  git push origin --delete <手順 2 で決めたブランチ名>
   git fetch --prune
   ```
 
