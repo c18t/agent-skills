@@ -44,6 +44,13 @@ def hook_command():
     return commands[0]
 
 
+def hook_handler():
+    handlers = [h for e in hook_entries() for h in e["hooks"]
+                if h.get("type") == "command"]
+    assert len(handlers) == 1, f"command handler が 1 つでない: {handlers}"
+    return handlers[0]
+
+
 class TestHookCommandString(unittest.TestCase):
     def test_does_not_hardcode_python3(self):
         """python3 直書きは Windows でフックが起動しない（notion 側 #2 の再発防止）。"""
@@ -57,6 +64,17 @@ class TestHookCommandString(unittest.TestCase):
         for rel in (os.path.join("scripts", "python.sh"),
                     os.path.join("scripts", "github_write_guard.py")):
             self.assertTrue(os.path.isfile(os.path.join(PLUGIN_ROOT, rel)), rel)
+
+    def test_supports_codex_plugin_root(self):
+        cmd = hook_command()
+        self.assertEqual(2, cmd.count("${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}"))
+
+    def test_windows_command_uses_shared_launcher_and_root_fallback(self):
+        cmd = hook_handler().get("commandWindows", "")
+        self.assertEqual(2, cmd.count("${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}"))
+        self.assertIn("python.cmd", cmd)
+        self.assertIn("github_write_guard.py", cmd)
+        self.assertTrue(os.path.isfile(os.path.join(PLUGIN_ROOT, "scripts", "python.cmd")))
 
 
 class TestHookMatcher(unittest.TestCase):

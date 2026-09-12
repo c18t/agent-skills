@@ -15,6 +15,7 @@ CLAUDE_PLUGIN_ROOT を参照できないので複製している）。テスト�
   ラッパーがどれを選び何を渡したかを stdout から確かめる。
 - sh 自体は PATH から外れても解決できるよう絶対パスで起動する。
 """
+import io
 import os
 import shutil
 import stat
@@ -26,6 +27,9 @@ import unittest
 WRAPPER = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "scripts", "python.sh")
+WRAPPER_CMD = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "scripts", "python.cmd")
 
 # Windows ランナーでも Git Bash の sh が居る。PATH を潰すので絶対パスで押さえる。
 SH = shutil.which("sh") or shutil.which("bash")
@@ -126,6 +130,51 @@ class TestRealInterpreter(unittest.TestCase):
             capture_output=True, timeout=30)
         self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8", "replace"))
         self.assertEqual(proc.stdout.decode("utf-8", "replace").strip(), "3")
+
+
+@unittest.skipUnless(os.name == "nt", "python.cmd は Windows でしか起動できない")
+class TestCmdWrapper(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.bindir = os.path.join(self._tmp.name, "bin")
+        os.makedirs(self.bindir)
+
+    def fake_interpreter(self, name, exit_code=0):
+        path = os.path.join(self.bindir, name + ".bat")
+        with io.open(path, "w", encoding="ascii", newline="\r\n") as f:
+            f.write("@echo off\n")
+            f.write("echo CALLED:%s\n" % name)
+            f.write(":loop\n")
+            f.write('if "%~1"=="" goto done\n')
+            f.write("echo ARG:%~1\nshift\ngoto loop\n:done\n")
+            f.write("exit /b %d\n" % exit_code)
+
+    def run_wrapper(self, *args):
+        env = dict(os.environ)
+        env["PATH"] = self.bindir
+        env.pop("PYTHONHOME", None)
+        return subprocess.run(
+            [WRAPPER_CMD, *args], capture_output=True, env=env, timeout=30)
+
+    def test_prefers_python3_and_preserves_arguments(self):
+        for name in ("python3", "python", "py"):
+            self.fake_interpreter(name)
+        proc = self.run_wrapper("my script.py", "a b")
+        self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8", "replace"))
+        self.assertEqual(
+            proc.stdout.decode("utf-8", "replace").splitlines(),
+            ["CALLED:python3", "ARG:my script.py", "ARG:a b"])
+
+    def test_propagates_child_exit_code(self):
+        self.fake_interpreter("python3", exit_code=3)
+        proc = self.run_wrapper("script.py")
+        self.assertEqual(proc.returncode, 3)
+
+    def test_exits_2_when_nothing_found(self):
+        proc = self.run_wrapper("script.py")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("python not found", proc.stderr.decode("utf-8", "replace"))
 
 
 if __name__ == "__main__":
