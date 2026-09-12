@@ -18,8 +18,19 @@ description: "捨てた選択肢がある判断を ADR として起草・更新�
 
 ## 2. 既存の判断を調べる
 
-リポジトリの `AGENTS.md` に ADR の規約があれば従う。既存の `docs/adr/` があればそこを使い、
-無ければ `docs/decisions/` を使う。同じ論点の ADR と、それを supersede する ADR が無いかを調べる。
+リポジトリの `AGENTS.md` に ADR の規約があれば従う。private companion repository が指定されていれば、
+[reference/private-storage.md](reference/private-storage.md) の helper で保存先を解決・検証してから使う。
+clone が無い、独立した Git repository ではない、または書き込めない場合は public tree へフォールバック
+せず停止し、同 reference の復旧方法を示す。
+
+規約が無ければ、public tree の `docs/adr/` と `docs/decisions/`、およびセットアップ済みの private
+companion repository を調べる。既存の保存先が 1 つだけで公開 / 非公開の区分も明らかなら、それを既存規約
+として使う。保存先が無い、複数ある、または区分が不明なら、ADR を起草・作成する前に公開 ADR と非公開
+ADR のどちらにするかをユーザーへ確認する。回答を得るまで `docs/decisions/` へ自動的に保存しない。
+公開 ADR を選んだ場合は既存の `docs/adr/`、`docs/decisions/` の順で使い、どちらも無ければ
+`docs/decisions/` を作る。非公開 ADR を選んだ場合は手順 6 に従う。
+
+解決した保存先で、同じ論点の ADR と、それを supersede する ADR が無いかを調べる。
 
 既存の ADR は不変として扱い、採択後の内容を書き換えない。判断を変えるときは新しい ADR を作り、
 新旧双方を `superseded by ADR-NNNN` と関連情報で辿れるようにする。判断の一覧や現状は索引側で更新する。
@@ -69,3 +80,12 @@ frontmatter の値はすべて 1 行のスカラーにする。各要素の意�
 
 ADR の全文と保存先を一度に提示する。ユーザーが作成や更新も求めている場合だけファイルへ書き込む。
 判断に未解決の部分があれば、確定事項に見せず `status: proposed` と More Information に残す。
+
+private companion repository へ書き込んだ場合、commit もその repository の中だけで行う。完了前に public
+repository の `git status --short` と `git diff --cached` を確認し、ADR の内容が一切現れないことを確かめる。
+
+## 6. private 保存先をセットアップする
+
+ユーザーが private ADR 保存先のセットアップを求めた場合は、
+[reference/private-storage.md](reference/private-storage.md) に従う。GitHub repository の作成は外部変更なので、
+helper が作成の必要を示したあと、実行直前にユーザーの承認を取る。承認前に `--approve-create` を渡さない。

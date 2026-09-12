@@ -7,7 +7,8 @@ description: "破壊的変更が重なって 1 本ずつマージできない複
 
 引数は統合したい PR 番号（`11 12` でも `#11 #12` でも可）。省略されたらどの PR を統合するかを聞く。
 
-PR 同士が衝突するかを事前に確かめ、`release/<プラグイン名>-<version>` の worktree を作って
+PR 同士が衝突するかを事前に確かめ、release ブランチ（プラグイン境界で切れるなら
+`release/<プラグイン名>-<version>`、境界をまたぐなら `release/merge-<日付>`）の worktree を作って
 セッションごと移動し、その中で PR を 1 本ずつローカル merge して衝突を解消する。
 統合状態で CI を回してからリリース PR を出し、承認を得て release → main を merge commit で入れ、
 自動クローズを確認して worktree を片付ける。
@@ -27,6 +28,11 @@ push の認証が無い環境では手順 6 の push 前に止まってユーザ
 
 うまくいかないときは [reference/troubleshooting.md](reference/troubleshooting.md) を見る。
 統合をやめるときの扱いも同じファイルにある。
+
+実行環境に `EnterWorktree` / `ExitWorktree` が無い場合は Codex として扱い、最初に
+[../issue-work/reference/runtime-boundaries.md](../issue-work/reference/runtime-boundaries.md) を読む
+（`issue-work` と共用。release ブランチの worktree にもそのまま当てはまる）。Codex ではチャットの
+cwd やツール隔離が移動したとは見なさず、同ファイルの preflight と絶対 `workdir` で境界を守る。
 
 ## 手順
 
@@ -62,14 +68,39 @@ git merge-tree --write-tree origin/<A> origin/<B>   # 衝突すると exit 1
 **ユーザーに version を聞かない。** 統合対象が同じ minor を主張していたら、それ以上上げない
 （リリースが 1 回なら version は 1 つ）。
 
-- ブランチ名 … **`release/<プラグイン名>-<version>`**（例 `release/my-plugin-1.2.0`）。
+**分けるかまとめるかは「変更がプラグイン境界で切れるか」で決める。** 依存の有無ではない。
+
+| 判定 | release ブランチ |
+| --- | --- |
+| 変更がプラグインごとに閉じている | 分ける。プラグインごとに 1 本 **`release/<プラグイン名>-<version>`** |
+| 変更が境界をまたぐ（2 つ以上） | まとめる。**`release/merge-<日付>`** 1 本 |
+
+境界をまたぐケースは少なくとも 2 通りある。**後者は依存が無いリポジトリでも起きる**ので、
+「プラグインが独立しているなら分ければよい」では足りない。
+
+- プラグイン間に依存がある（`core` を上げたら `ui` も上げないと壊れる）
+- **変更そのものが分割できない**（複数プラグインをまたぐドキュメントの不整合解消など）
+
+名前とパスは次のとおり。
+
+- 単体のブランチ名 … `release/<プラグイン名>-<version>`（例 `release/my-plugin-1.2.0`）。
   プラグイン名は必須（モノレポで version が独立しているため）。ドットはそのまま。issue 番号は付けない
-- worktree パス … `../<リポジトリ名>-<ブランチ名のスラッシュをハイフンに置換>`
-  （例 `../my-repo-release-my-plugin-1.2.0`）
-- 複数プラグインを同時にリリースするなら、プラグインごとに release ブランチを分ける
+- 境界をまたぐブランチ名 … `release/merge-<日付>`（例 `release/merge-2026-09-04`）。
+  同日に 2 回あるなら末尾に `-2` を付ける。**プラグイン名も version も名前に入れない**
+  （列挙するとプラグイン 2 つで 62 文字に達し、worktree パスが Windows の `MAX_PATH` 260 を
+  圧迫する。version を含めると、切ったあとに version を見直した時点で名前が実態とずれる）。
+  含まれるプラグインと version はリリース PR 本文の「含まれる PR」欄が持つ（手順 9）
+- worktree パス … `<リポジトリルート>/.claude/worktrees/<ブランチ名のスラッシュをハイフンに置換>`
+  （例 `.claude/worktrees/release-my-plugin-1.2.0` / `.claude/worktrees/release-merge-2026-09-04`）。
+  `issue-work` と同じ配置規約で、全環境共通。
+  🔴 **リポジトリ外の sibling パス（`../<リポジトリ名>-...`）へ作らない**
+  （[reference/troubleshooting.md](reference/troubleshooting.md)）
+
+`.claude/worktrees/` はリポジトリの `.gitignore` に一度だけ登録しておく。未登録なら今回の
+release ブランチで追加する。
 
 ```bash
-basename "$(git rev-parse --show-toplevel)"
+git rev-parse --show-toplevel
 ```
 
 次をチャットに出してユーザーの承認を待つ。**この手順ではまだブランチを作らない。**
@@ -77,8 +108,8 @@ basename "$(git rev-parse --show-toplevel)"
 - 対象 PR の一覧と**マージ順**。衝突が小さいほうを先に入れ、あとの 1 本で解消をまとめる。
   **リネーム（ディレクトリ改名）を含む PR があれば最初に入れる**
   （[reference/rename-merge.md](reference/rename-merge.md)）
-- ブランチ名と worktree パス
-- version と、それ以上上げない根拠
+- ブランチ名と worktree パス。**分けた／まとめた根拠**（境界で切れるかどうか）
+- version と、それ以上上げない根拠。まとめた場合はプラグインごとに
 - 手順 1 で見つかった衝突（ファイルと内容）
 
 ### 3. worktree を作る
@@ -88,7 +119,7 @@ release ブランチは**必ず新規**。起点は `origin/<デフォルトブ�
 
 ```bash
 git fetch origin
-git worktree add -b release/<プラグイン名>-<version> <パス> origin/<デフォルトブランチ>
+git worktree add -b <手順 2 で決めたブランチ名> <パス> origin/<デフォルトブランチ>
 git worktree list
 ```
 
@@ -96,14 +127,22 @@ git worktree list
 
 ### 4. `*.code-workspace` に worktree を登録する
 
+**ローカル限定**（VSCode に worktree を見せるための手順）。Cowork などエディタが
+リポジトリを開いていない環境ではスキップしてよい（その場合は 12-d もスキップする）。
+
 **移動する前に行う。** リポジトリルートの `*.code-workspace` の `folders` に、`name` にブランチ名を
 そのまま、`path` に worktree パスを入れた要素を **Edit で**追記する（JSONC なので全体を
 書き直さない）。同じ `path` が既にあれば何もしない。形式と分岐は `issue-work` スキルの手順 4 と同じ。
 
 ### 5. worktree へ移動する
 
-`EnterWorktree` ツールに `path: "<パス>"` を渡してセッションを移す。初回は承認プロンプトが出るので
-待つ。移動できたことを `pwd` で確かめてから次へ進む。
+`EnterWorktree` があれば `path: "<絶対パス>"` を渡してセッションを移す。
+`.claude/worktrees/` 配下なら通常は承認プロンプトなしで入れる。移動できたことを `pwd` で確かめる。
+
+`EnterWorktree` が無い Codex では移動を装わず、worktree の絶対パスをユーザーに示す。以降の
+Git・テスト・ファイル操作はすべてその絶対パスを `workdir` に指定し、各操作前の preflight を行う。
+具体的な検査と停止条件は
+[../issue-work/reference/runtime-boundaries.md](../issue-work/reference/runtime-boundaries.md)。
 
 🔴 **リリース作業をメインチェックアウトでやらない**（衝突解消でメインが人質になる）。
 
@@ -114,7 +153,7 @@ git worktree list
 ```bash
 git fetch origin
 git merge --no-ff origin/<PR のブランチ>   # 衝突があればここで解消
-git push -u origin release/<プラグイン名>-<version>
+git push -u origin <手順 2 で決めたブランチ名>
 ```
 
 - 🔴 **`--no-ff` の merge commit で入れる。** squash すると head SHA が変わり、
@@ -156,6 +195,12 @@ CI が回すものと同じ一式をローカルで回す。
 ### 9. リリース PR の内容をチャットに書き出す 🛑
 
 テンプレートを決めて、見出しを埋めた本文をチャットに全文書き出す。
+Codex では先に
+[../issue-work/reference/runtime-boundaries.md](../issue-work/reference/runtime-boundaries.md)
+の helper を 1 回だけ実行し、返された `.codex/tmp/<ID>/` の下へ PR 本文と以降の一時ファイルを
+保存する。❗ **保存先が現在の sandbox の writable root に含まれることを先に確認する**
+（worktree はリポジトリ内なので通常は含まれる。含まれないなら暗黙に回避せず、理由と対象を示して
+承認を取る）。
 
 | リポジトリ側 | 使うテンプレート |
 | --- | --- |
@@ -181,6 +226,10 @@ CI が回すものと同じ一式をローカルで回す。
 git push
 gh pr create --base <デフォルトブランチ> --title "release: <プラグイン名> <version>" --body-file <本文ファイル>
 ```
+
+境界をまたいでまとめた場合は、タイトルにプラグインと version を並べる
+（例 `release: my-plugin 1.2.0 and my-ui 0.4.0`）。**ブランチ名と違って PR タイトルは長さの制約が
+緩く、リリース内容が一目で分かるほうが有用**なので、ここは列挙してよい。
 
 PR 作成の MCP 経路は `create_pull_request`（本文はファイルに保存して `body` に
 `@@FILE:<相対パス>@@`）。push は 🔴 `git push` のみ（冒頭の注意）。
@@ -219,14 +268,15 @@ CI が通ったら、次の 3 点をチャットに出してユーザーの承�
 
 - **11-a** worktree を出る
 
-  `ExitWorktree` ツールに `action: "keep"` を渡す（`remove` は使わない。実際に消すのは 12-c）。
+  `ExitWorktree` があれば `action: "keep"` を渡す（`remove` は使わない。実際に消すのは 12-c）。
+  Codex では移動操作をせず、以降のコマンドにメイン checkout の絶対パスを `workdir` として指定する。
   🔴 **マージより先に出る**（worktree の中から `gh pr merge` を実行すると `gh` のローカル後処理が
   失敗して非ゼロ終了する。マージ自体は完了している）。
 
 - **11-b** マージする
 
   ```bash
-  gh pr merge <PR番号> --merge --subject "release: <プラグイン名> <version> (#<PR番号>)"
+  gh pr merge <PR番号> --merge --subject "<手順 10 の PR タイトル> (#<PR番号>)"
   ```
 
   ❗ **`--subject` の末尾に半角スペース＋`(#<PR番号>)` を付ける。** `--subject` を渡すと GitHub が
@@ -274,13 +324,13 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
 
 - **12-c** worktree とローカルブランチを片付ける
 
-  まず release worktree とメイン checkout の両方で `git status --short` を確認する。未コミット変更や
-  ユーザー所有の未追跡ファイルがあれば削除せず止まる。
+  先に worktree と main の両方で `git status --short` を確認する。未コミット変更やユーザー所有の
+  未追跡ファイルがあれば削除せず止まる。Codex では全コマンドを main checkout の `workdir` で行う。
 
   ```bash
   git worktree remove <パス>
-  git branch -D release/<プラグイン名>-<version>
-  git push origin --delete release/<プラグイン名>-<version>
+  git branch -D <手順 2 で決めたブランチ名>
+  git push origin --delete <手順 2 で決めたブランチ名>
   git fetch --prune
   ```
 
@@ -321,9 +371,10 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
 
 - **12-d** `*.code-workspace` から worktree の記載を消す
 
+  手順 4 をスキップした環境（Cowork など）ではここもスキップする。
   手順 4 で追記した release worktree と、12-c で実際に削除した統合対象 PR の worktree の
   `folders` 要素だけを **Edit で**取り除く。削除できず残置した worktree の要素は、次に入るための
-  入口として残す。
+  入口として残す。メイン自身の要素・他の worktree の要素・`settings` などは残す。
   メインチェックアウト側への書き込みなので **11-a で出た後に**行う。
 
 - **12-e** マージ済みであることを確認して報告する
@@ -351,4 +402,5 @@ PR と issue で自動クローズの条件が違い、issue のほうは発火�
 | [reference/conflict-detection.md](reference/conflict-detection.md) | `git merge-tree` の版ごとの書式と判定、`mergeable` が使えない理由 |
 | [reference/rename-merge.md](reference/rename-merge.md) | リネームを含む PR の統合で新規ファイルが旧ディレクトリに着地する罠、旧名残留の grep |
 | [reference/auto-close.md](reference/auto-close.md) | PR と issue の自動クローズ条件と、挙動が割れた実例 |
+| [../issue-work/reference/runtime-boundaries.md](../issue-work/reference/runtime-boundaries.md) | Codex の workdir 境界、thread ごとの一時ディレクトリ、sandbox の保存先（`issue-work` と共用） |
 | [templates/release.md](templates/release.md) | リポジトリにリリース PR テンプレートが無いときの既定 |
