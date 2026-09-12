@@ -1,0 +1,7 @@
+{
+  "name": "common-sense",
+  "description": "コミット前に diff を読み、情報を適切な宛先へ振り分けて、なぜ今この形なのかに絞ったメッセージを書く",
+  "version": "0.1.0",
+  "author": { "name": "c18t" },
+  "keywords": ["git", "commit", "message", "workflow"]
+}

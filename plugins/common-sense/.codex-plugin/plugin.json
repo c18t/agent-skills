@@ -1,0 +1,23 @@
+{
+  "name": "common-sense",
+  "version": "0.1.0",
+  "description": "Route commit context to the right destination before writing a message",
+  "author": {
+    "name": "c18t",
+    "url": "https://github.com/c18t"
+  },
+  "repository": "https://github.com/c18t/agent-skills",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Common Sense",
+    "shortDescription": "Write focused commit messages",
+    "longDescription": "Inspect the diff, route context to its proper destination, and keep commit messages focused on why the change exists in its current form.",
+    "developerName": "c18t",
+    "category": "Productivity",
+    "capabilities": ["Interactive"],
+    "websiteURL": "https://github.com/c18t/agent-skills/tree/main/plugins/common-sense",
+    "defaultPrompt": [
+      "Write a commit message for the current diff."
+    ]
+  }
+}
