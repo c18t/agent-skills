@@ -1,7 +1,7 @@
 {
   "name": "common-sense",
-  "description": "コミット前に diff を読み、情報を適切な宛先へ振り分けて、なぜ今この形なのかに絞ったメッセージを書く",
+  "description": "AI と利用者が判断の前提と理由を共有するためのスキルやエージェントをまとめ、共通の判断材料として使えるようにする",
   "version": "0.1.0",
   "author": { "name": "c18t" },
-  "keywords": ["git", "commit", "message", "workflow"]
+  "keywords": ["ai", "decision", "context", "workflow"]
 }
